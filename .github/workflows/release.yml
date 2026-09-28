@@ -1,0 +1,97 @@
+name: Build and release extension
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: extension-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '22'
+          cache: pnpm
+      - name: Check release version
+        run: |
+          node --input-type=module <<'JS'
+          import fs from 'node:fs';
+          const pkg = JSON.parse(fs.readFileSync('package.json'));
+          const manifest = JSON.parse(fs.readFileSync('public/manifest.json'));
+          if (pkg.version !== manifest.version) {
+            throw new Error('package.json and manifest.json versions must match');
+          }
+          if (process.env.GITHUB_REF_TYPE === 'tag' && process.env.GITHUB_REF_NAME !== `v${pkg.version}`) {
+            throw new Error(`Release tag must be v${pkg.version}`);
+          }
+          JS
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test
+      - run: pnpm run build
+      - name: Package extension and verify vendor assets
+        run: python3 scripts/package-store.py
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: browser-extension
+          path: |
+            releases/plabs-wallet-extension-*-store.zip
+            releases/plabs-wallet-extension-*-store.zip.sha256
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+        with:
+          name: browser-extension
+          path: release-assets
+      - name: Publish browser extension
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          cd release-assets
+          sha256sum --check ./*.sha256
+          cat > /tmp/release-notes.md <<'NOTES'
+          ## Browser extension
+
+          Download `plabs-wallet-extension-*-store.zip` below (not the GitHub source archive).
+          Unzip it, open `chrome://extensions` or `edge://extensions`, enable Developer mode,
+          and choose **Load unpacked**, selecting the folder containing `manifest.json`.
+
+          The accompanying `.sha256` file can be used to verify the download.
+          This package is built and tested by GitHub Actions; it is not a browser store publication.
+          NOTES
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            test "$(gh release view "$RELEASE_TAG" --json isDraft --jq .isDraft)" = true
+            gh release upload "$RELEASE_TAG" ./*.zip ./*.sha256 --clobber
+          else
+            gh release create "$RELEASE_TAG" ./*.zip ./*.sha256 \
+              --verify-tag --draft --title "PLabs Wallet $RELEASE_TAG" \
+              --notes-file /tmp/release-notes.md
+          fi
+          gh release edit "$RELEASE_TAG" --draft=false

@@ -127,7 +127,23 @@ pnpm run test
 
 统一使用现有金色 PLabs 标志的圆角版本。工具栏提供 16/24/32/48px PNG；商店图标为 128px RGBA PNG，主体 96px、每边 16px 透明留白。钱包页面、标签页 favicon 与 EIP-6963 识别图标同步更新；EIP-6963 图标直接嵌入 PNG data URI，不依赖 dApp 网站的资源路径。
 
-`pnpm run build` 后运行 `python3 scripts/package-store.py`，生成 `releases/plabs-wallet-extension-0.5.4-store.zip` 及 SHA-256 文件。上传包排除独立 dApp 演示页。商店图标与宣传图在 `releases/store-assets/`；真实界面截图需另行准备。仅调整素材并编译打包，未运行测试或提交商店审核。
+`pnpm run build` 后运行 `python3 scripts/package-store.py`，生成 `releases/plabs-wallet-extension-<version>-store.zip` 及 SHA-256 文件。上传包排除独立 dApp 演示页。商店图标与宣传图在 `releases/store-assets/`；真实界面截图需另行准备。
+
+### GitHub Actions 与 Release
+
+推送 `main`、提交 PR 或手动运行 **Build and release extension**，会安装锁定依赖、运行单元测试、构建扩展、校验 vendor 文件并上传 ZIP 与 SHA-256 文件为 Actions artifact（保留 14 天）。
+
+发布新版本时，同步更新 `package.json` 和 `public/manifest.json` 的版本号，提交后推送对应标签：
+
+```bash
+git push origin main
+git tag -a v0.8.1 -m "Release v0.8.1"
+git push origin v0.8.1
+```
+
+将示例中的版本替换为待发布版本。标签必须与两个文件的版本一致。标签构建通过后，workflow 自动创建 GitHub Release，上传插件 ZIP 和校验文件后发布，无需额外配置 token。已发布版本不会被覆盖；构建失败可修复后发布新版本，临时失败可重新运行对应标签的 workflow。
+
+从 [Releases](https://github.com/1inxe/plabs-wallet/releases) 下载插件 ZIP（不是 GitHub 自动提供的源码压缩包），解压后在 `chrome://extensions` 或 `edge://extensions` 打开开发者模式，选择“加载已解压的扩展程序”，指向包含 `manifest.json` 的目录。此流程发布可安装包，不会自动提交 Chrome/Edge 商店。
 
 ## 独立 dApp SDK
 
