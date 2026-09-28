@@ -12,6 +12,5 @@ vite.config.d.ts
 .env.*
 !.env.example
 
-# Generated release packages; keep store artwork
-releases/*
-!releases/store-assets/
+# Generated extension packages
+releases/

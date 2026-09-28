@@ -3,4 +3,4 @@ export type {
   PlabsCapabilities as DappCapabilities,
   PrivacyTransactionRequest as DappPrivacyRequest,
   PrivacyTransactionResult as DappPrivacyResult,
-} from '@plabs-wallet/sdk';
+} from 'plabs-js-sdk';

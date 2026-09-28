@@ -1,4 +1,4 @@
-import type { PrivacyReadScope, PrivacySession } from '@plabs-wallet/sdk';
+import type { PrivacyReadScope, PrivacySession } from 'plabs-js-sdk';
 export class PrivacyAccessError extends Error {
   constructor(
     public code: number,

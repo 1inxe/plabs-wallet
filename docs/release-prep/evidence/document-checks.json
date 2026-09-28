@@ -1,7 +1,0 @@
-{
-  "html_external_resources": [],
-  "html_scripts": 0,
-  "broken_document_links": [],
-  "release_sha256_unchanged": true,
-  "checks": "static documentation/package inspection only; no wallet runtime or regression tests"
-}

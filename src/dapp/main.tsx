@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { ArrowRight, Bell, Check, Code2, Copy, ExternalLink, Fingerprint, Link2, LockKeyhole, RefreshCw, ShieldCheck, Unplug, Wallet } from 'lucide-react';
 import { getAddress, hexlify, parseEther, toUtf8Bytes, verifyMessage } from 'ethers';
 import { discoverPlabs, type DiscoveredWallet } from './provider';
-import { createPlabsWallet } from '@plabs-wallet/sdk';
+import { createPlabsWallet } from 'plabs-js-sdk';
 import type { DappCapabilities, DappPrivacyResult } from '../shared/dapp';
 import '../ui/fonts.css';
 import './style.css';
@@ -137,7 +137,7 @@ function Playground() {
     connect: `// 先通过 EIP-6963 获取选中的 provider\nconst accounts = await provider.request({\n  method: 'eth_requestAccounts'\n});`,
     sign: `const signature = await provider.request({\n  method: 'personal_sign',\n  params: [hexlify(toUtf8Bytes(message)), accounts[0]]\n});\nconst signer = verifyMessage(message, signature);`,
     disconnect: `await provider.request({\n  method: 'wallet_revokePermissions',\n  params: [{ eth_accounts: {} }]\n});\n// 清理网站自己的登录会话与 UI 状态`,
-    privacy: `import { getPlabsWallet } from '@plabs-wallet/sdk';\n\nconst wallet = getPlabsWallet(provider);
+    privacy: `import { getPlabsWallet } from 'plabs-js-sdk';\n\nconst wallet = getPlabsWallet(provider);
 await wallet.evm.connect();
 
 const result = await wallet.privacy.sendTransaction({

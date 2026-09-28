@@ -1,13 +1,13 @@
 import { consentStorageKey, consentStoragePrefix, sealConsent, openConsent } from './dapp-api/read-consent-store';
 import { parseIntent as parseDexIntent, amounts as dexAmounts } from './privacy/dex/protocol';
 import { journalId as dexJournalId } from './privacy/dex/journal';
-import type { DexOrderSummary } from '@plabs-wallet/sdk';
+import type { DexOrderSummary } from 'plabs-js-sdk';
 import { createWalletWindow } from './shared/wallet-window';
 import { parseDexReferences, fetchDexOrders, type DexReference } from './dapp-api/dex-orders';
 import { bytesToBase64, base64ToBytes } from './shared/encoding';
 import { createPrivacyAccess, PrivacyAccessError, readPagination, readScopes, sameReadContext, type ReadContext, type ReadGrant } from './dapp-api/privacy-access';
 import { publicBalances, privateBalances, historyEntries } from './dapp-api/read-models';
-import type { PrivacyReadScope, PrivacyNote, PrivacyHistoryPage, WalletPortfolio } from '@plabs-wallet/sdk';
+import type { PrivacyReadScope, PrivacyNote, PrivacyHistoryPage, WalletPortfolio } from 'plabs-js-sdk';
 import { createPublicTransfers } from './public/transfers';
 import { syncPrivacyPools } from './privacy/sync-pools';
 import { legacyGasFailure, isInsufficientGasRejection } from './privacy/failure';

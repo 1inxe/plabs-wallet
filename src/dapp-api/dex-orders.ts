@@ -1,4 +1,4 @@
-import type { DexOrderSummary } from '@plabs-wallet/sdk';
+import type { DexOrderSummary } from 'plabs-js-sdk';
 import { readJsonResponse } from '../shared/network-response';
 const record=(value:unknown):Record<string,unknown>=>value&&typeof value==='object'&&!Array.isArray(value)?value as Record<string,unknown>:{};
 const id=(value:unknown)=>typeof value==='string'&&/^(0x)?[0-9a-f]{32}$/i.test(value)?value.replace(/^0x/i,'').toLowerCase():null;

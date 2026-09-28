@@ -1,4 +1,4 @@
-import type { PrivacyHistoryEntry, PrivacyNote, PublicBalance, ShieldedBalance } from '@plabs-wallet/sdk';
+import type { PrivacyHistoryEntry, PrivacyNote, PublicBalance, ShieldedBalance } from 'plabs-js-sdk';
 import type { PrivacyActivity, PrivacyPoolSnapshot, PublicAssetBalance } from '../shared/types';
 export function publicBalances(items: PublicAssetBalance[]): PublicBalance[] {
   return items.map(a => ({ chainId:a.chainId,type:a.type,address:a.address,symbol:a.symbol,decimals:a.decimals,balanceRaw:a.balanceRaw }));

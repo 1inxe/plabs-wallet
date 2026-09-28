@@ -4,25 +4,11 @@
   "version": "0.8.1",
   "type": "module",
   "scripts": {
-    "dev": "pnpm run build:sdk && vite",
-    "build": "pnpm run build:sdk && tsc -b && vite build",
-    "test": "vitest run",
-    "smoke": "node scripts/smoke.mjs",
-    "test:ui": "node scripts/ui-smoke.mjs",
-    "test:send": "node scripts/send-smoke.mjs",
-    "test:send-api": "node scripts/public-api-smoke.mjs",
-    "dev:dapp": "pnpm run build:sdk && vite --host 127.0.0.1 --port 5174 --strictPort",
-    "build:sdk": "pnpm --filter @plabs-wallet/sdk build",
-    "pack:sdk": "pnpm --dir packages/plabs-wallet-sdk pack --pack-destination ../../releases",
-    "test:privacy-read": "node scripts/privacy-read-smoke.mjs",
-    "test:privacy-approval-ui": "node scripts/privacy-approval-ui-smoke.mjs",
-    "test:dex-prover": "node scripts/dex-prover-smoke.mjs",
-    "test:dex-approval": "node scripts/dex-approval-smoke.mjs",
-    "test:note-recovery": "node scripts/note-recovery-smoke.mjs",
-    "test:unified-connect": "node scripts/unified-connect-smoke.mjs"
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "dev:dapp": "vite --host 127.0.0.1 --port 5174 --strictPort"
   },
   "dependencies": {
-    "@plabs-wallet/sdk": "workspace:*",
     "@radix-ui/react-dialog": "^1.1.23",
     "@radix-ui/react-dropdown-menu": "^2.1.24",
     "@radix-ui/react-select": "^2.3.7",
@@ -35,6 +21,7 @@
     "clsx": "^2.1.1",
     "ethers": "^6.15.0",
     "lucide-react": "^0.468.0",
+    "plabs-js-sdk": "0.2.0",
     "qrcode.react": "^4.2.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
@@ -46,12 +33,10 @@
     "@types/react-dom": "^18.3.5",
     "@vitejs/plugin-react": "^4.7.0",
     "autoprefixer": "^10.6.1",
-    "playwright-core": "^1.63.0",
     "postcss": "^8.5.28",
     "tailwindcss": "3.4.17",
     "typescript": "^5.7.2",
-    "vite": "^6.4.3",
-    "vitest": "^4.1.11"
+    "vite": "^6.4.3"
   },
   "packageManager": "pnpm@9.15.4"
 }

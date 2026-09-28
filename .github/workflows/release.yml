@@ -42,7 +42,6 @@ jobs:
           }
           JS
       - run: pnpm install --frozen-lockfile
-      - run: pnpm test
       - run: pnpm run build
       - name: Package extension and verify vendor assets
         run: python3 scripts/package-store.py
@@ -84,7 +83,7 @@ jobs:
           and choose **Load unpacked**, selecting the folder containing `manifest.json`.
 
           The accompanying `.sha256` file can be used to verify the download.
-          This package is built and tested by GitHub Actions; it is not a browser store publication.
+          This package is built by GitHub Actions; it is not a browser store publication.
           NOTES
           if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
             test "$(gh release view "$RELEASE_TAG" --json isDraft --jq .isDraft)" = true

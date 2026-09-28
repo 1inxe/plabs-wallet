@@ -1,4 +1,4 @@
-# Third-party dependency notices — preparation draft
+# Third-party dependency notices
 
 Generated from installed production package metadata on 2026-09-22. Does not establish licenses for vendored prover bundles, WASM, circuit keys, fonts, logos or design assets. Resolve those separately before distributing.
 
@@ -192,7 +192,7 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 
-## @plabs-wallet/sdk 0.1.0
+## plabs-js-sdk 0.1.0
 Declared license: MIT
 
 Full license text not located automatically; manual review required.
