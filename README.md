@@ -61,7 +61,7 @@ pnpm run build     # TypeScript checks and production build
 
 The installed extension runs from `dist/`, not the development server. The dApp example uses the real injected provider and requires the extension to be installed and unlocked. See the [integration guide](docs/DAPP-INTEGRATION.md) for connection, read permissions and transaction requests.
 
-`src/` contains the extension and example; `public/` contains the manifest, runtime icons, fonts and proving assets. The pinned SDK archive in `vendor/` allows standalone installation without a sibling SDK checkout.
+`src/` contains the extension and example; `public/` contains the manifest, runtime icons, fonts and proving assets. The SDK is installed from npm as `plabs-js-sdk@0.2.0`, with no sibling SDK checkout required.
 
 Update the English and Chinese READMEs together when changing documentation.
 

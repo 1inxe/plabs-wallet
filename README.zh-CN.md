@@ -61,7 +61,7 @@ pnpm run build     # TypeScript 检查与生产构建
 
 安装的扩展从 `dist/` 运行，不从开发服务器运行。dApp 示例使用真实注入的 provider，需要安装并解锁扩展。连接、读取权限与交易请求见[接入指南](docs/DAPP-INTEGRATION.md)。
 
-`src/` 包含扩展与示例；`public/` 包含 manifest、运行时图标、字体和证明资源。`vendor/` 中固定的 SDK 包支持独立安装，无需在同级检出 SDK 仓库。
+`src/` 包含扩展与示例；`public/` 包含 manifest、运行时图标、字体和证明资源。SDK 从 npm 安装，固定版本为 `plabs-js-sdk@0.2.0`，无需在同级检出 SDK 仓库。
 
 修改 README 时请同步更新英文和中文版本。
 
