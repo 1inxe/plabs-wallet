@@ -1,0 +1,152 @@
+{
+  "assets": [
+    {
+      "path": "public/fonts/font-0.ttf",
+      "bytes": 324820,
+      "sha256": "1b08e7fc267a5c7e1d614100f604b83e7e8a0be241f0f288faa2b3ac93a683ba",
+      "license_review": "not established by this audit"
+    },
+    {
+      "path": "public/fonts/font-1.ttf",
+      "bytes": 325304,
+      "sha256": "8c883f63b2c4157d997319f2c8bc6995ed4357ef371940d31ca159004a4aae63",
+      "license_review": "not established by this audit"
+    },
+    {
+      "path": "public/fonts/font-2.ttf",
+      "bytes": 326048,
+      "sha256": "e7a1aaf7eda9f2fad4131725fa556265ec75ca7b2d756260173a040363e8d4f7",
+      "license_review": "not established by this audit"
+    },
+    {
+      "path": "public/fonts/font-3.ttf",
+      "bytes": 326468,
+      "sha256": "b37284b5701b6b168dfc770aa1a4ac492106422fd3ba76bc7641e37434e8019c",
+      "license_review": "not established by this audit"
+    },
+    {
+      "path": "public/fonts/font-4.ttf",
+      "bytes": 112172,
+      "sha256": "44ce4a84f20d60f24539bd0cef11f79c29e38609e0f8adf18551c9794a5d9dc3",
+      "license_review": "not established by this audit"
+    },
+    {
+      "path": "public/fonts/font-5.ttf",
+      "bytes": 112204,
+      "sha256": "3386a05f6ece969e4537de6be894170d20558e82f7d56c8c5d332972ef172160",
+      "license_review": "not established by this audit"
+    },
+    {
+      "path": "public/fonts/font-6.ttf",
+      "bytes": 112160,
+      "sha256": "df54dbfafba61d4911eb3dab9bba2d20531fb009f01d64dd42fa96ab862584d8",
+      "license_review": "not established by this audit"
+    },
+    {
+      "path": "public/groth16/action/action.wasm",
+      "bytes": 465543,
+      "sha256": "100edcd98f90e439ab788aaa20fb674718a74fbaa2c714dc55ad568346d30e4a",
+      "license_review": "not established by this audit"
+    },
+    {
+      "path": "public/groth16/action/action_final.zkey",
+      "bytes": 35822504,
+      "sha256": "ffa86bc1ed84731df1d56b756b35e349a8ef01b1030423977e0499cdb600480e",
+      "license_review": "not established by this audit"
+    },
+    {
+      "path": "public/groth16/binding/binding.wasm",
+      "bytes": 161170,
+      "sha256": "0b72c20c86f1129fe24255132f996085dd2c9ca2022e675b3eef75ca7ad9ad3b",
+      "license_review": "not established by this audit"
+    },
+    {
+      "path": "public/groth16/binding/binding_final.zkey",
+      "bytes": 3442276,
+      "sha256": "5422e7541bf257c12271c731fad104c3e86ccdf99df1c640fe7067e2e0814a48",
+      "license_review": "not established by this audit"
+    },
+    {
+      "path": "public/groth16-prover.bundle.js",
+      "bytes": 295832,
+      "sha256": "122efa28783ba030a3a938687de47f732b5da64a3302b3456227b21a08c618d8",
+      "license_review": "not established by this audit"
+    },
+    {
+      "path": "public/native-rpc-sync.worker.js",
+      "bytes": 121898,
+      "sha256": "4ca104efbcb67cb445d548e26e67094aeb2dbabb373a957db7070c4682503f54",
+      "license_review": "not established by this audit"
+    },
+    {
+      "path": "public/wasm/41df131b8bd26c05553de528fe2db7e9dd8b24d0ecbcff6c8067a846891ae016/privacybtc_wasm_prover.js",
+      "bytes": 33918,
+      "sha256": "af01e701a4184f23378fa7141fedf156ef54849941b64270f2da9611aea70dcb",
+      "license_review": "not established by this audit"
+    },
+    {
+      "path": "public/wasm/41df131b8bd26c05553de528fe2db7e9dd8b24d0ecbcff6c8067a846891ae016/privacybtc_wasm_prover_bg.wasm",
+      "bytes": 1554781,
+      "sha256": "ac3ea7073d68c9ca4b5c7999cb93b83e8e7ba44a2ee91b320012a5e6c48c40fe",
+      "license_review": "not established by this audit"
+    }
+  ],
+  "checks": [
+    {
+      "asset": "public/wasm/41df131b8bd26c05553de528fe2db7e9dd8b24d0ecbcff6c8067a846891ae016/privacybtc_wasm_prover.js",
+      "matches_manifest": true
+    },
+    {
+      "asset": "public/wasm/41df131b8bd26c05553de528fe2db7e9dd8b24d0ecbcff6c8067a846891ae016/privacybtc_wasm_prover_bg.wasm",
+      "matches_manifest": true
+    },
+    {
+      "manifest_entry": "binding_final.zkey",
+      "packaged_path": "public/groth16/binding/binding_final.zkey",
+      "status": "hash_matches",
+      "flattened_path": false
+    },
+    {
+      "manifest_entry": "binding_js/binding.wasm",
+      "packaged_path": "public/groth16/binding/binding.wasm",
+      "status": "hash_matches",
+      "flattened_path": true
+    },
+    {
+      "manifest_entry": "binding_js/generate_witness.js",
+      "packaged_path": null,
+      "status": "not_packaged_upstream_entry",
+      "flattened_path": false
+    },
+    {
+      "manifest_entry": "binding_js/witness_calculator.js",
+      "packaged_path": null,
+      "status": "not_packaged_upstream_entry",
+      "flattened_path": false
+    },
+    {
+      "manifest_entry": "action_final.zkey",
+      "packaged_path": "public/groth16/action/action_final.zkey",
+      "status": "hash_matches",
+      "flattened_path": false
+    },
+    {
+      "manifest_entry": "action_js/action.wasm",
+      "packaged_path": "public/groth16/action/action.wasm",
+      "status": "hash_matches",
+      "flattened_path": true
+    },
+    {
+      "manifest_entry": "action_js/generate_witness.js",
+      "packaged_path": null,
+      "status": "not_packaged_upstream_entry",
+      "flattened_path": false
+    },
+    {
+      "manifest_entry": "action_js/witness_calculator.js",
+      "packaged_path": null,
+      "status": "not_packaged_upstream_entry",
+      "flattened_path": false
+    }
+  ]
+}

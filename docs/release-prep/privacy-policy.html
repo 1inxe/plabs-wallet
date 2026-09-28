@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><title>PLabs Privacy Wallet · 隐私政策草稿</title>
+<style>
+:root{color-scheme:dark;font-family:system-ui,-apple-system,'PingFang SC',sans-serif;background:#101419;color:#dce1e9}*{box-sizing:border-box}body{margin:0;line-height:1.85}main{max-width:900px;margin:auto;padding:48px 24px 80px}header{border-bottom:1px solid #29323e;padding-bottom:26px}h1{font-size:clamp(26px,5vw,38px);line-height:1.3;margin:12px 0}h2{font-size:20px;margin-top:34px;color:#f1f4f8}p,li{font-size:15px}a{color:#80d8b8}small,.muted{color:#9da8b7}.brand{letter-spacing:.12em;font-size:12px;color:#81dbb7}.draft{padding:16px 20px;border:1px solid #775e32;border-radius:12px;background:#2b2418;color:#efce8e;margin:24px 0}.pending{color:#f4d08d}dl{display:grid;grid-template-columns:130px 1fr;gap:8px 16px;padding:20px;background:#191f28;border-radius:12px}dt{color:#9da8b7}dd{margin:0}table{width:100%;border-collapse:collapse;font-size:14px}th,td{text-align:left;vertical-align:top;padding:12px;border-bottom:1px solid #2b3440}th{color:#9da8b7}.table-wrap{overflow-x:auto}footer{margin-top:40px;border-top:1px solid #29323e;padding-top:22px;color:#9da8b7;font-size:13px}@media(max-width:560px){main{padding:28px 18px}dl{grid-template-columns:1fr;gap:2px}dd{margin-bottom:10px}th,td{min-width:140px}}
+</style>
+</head>
+<body><main>
+<header><div class="brand">PLABS PRIVACY WALLET</div><h1>你的钱包数据，如何被处理</h1><p class="muted">隐私政策草稿 · Privacy policy draft<br>对应扩展版本 0.5.2 · 编制日期 2026-09-22</p></header>
+<div class="draft"><strong>待完善，尚未生效。</strong>发布主体、联系方式、生产服务日志策略及有效日期尚未确定。本页不能直接作为已生效的商店隐私政策。经营者需核对并填实以下信息，再通过公开 HTTPS 地址提供政策；本地文件不满足商店公开链接要求。</div>
+<dl><dt>运营主体</dt><dd class="pending">待定：个人法定姓名或公司法定名称</dd><dt>隐私与支持邮箱</dt><dd class="pending">待定：可接收用户请求的公开邮箱</dd><dt>官网 / 联系地址</dt><dd class="pending">待定：实际官网与适用的联系地址</dd><dt>政策有效日期</dt><dd class="pending">待定：正式上线日期</dd><dt>服务商日志</dt><dd class="pending">待定：你控制的 RPC / Indexer / Relayer / CDN 的日志字段、保存期限、地区及访问人员</dd></dl>
+<h2>1. 适用范围</h2>
+<p>本政策说明 PLabs Privacy Wallet 浏览器扩展如何处理创建、导入和管理钱包、网站连接、签名、资产同步、隐私证明及交易请求相关的数据。外部网站、网络服务商、区块浏览器及区块链自身的数据处理需同时参考相应服务政策。本扩展的“隐私”功能不承诺网络匿名、不可关联或消除公开链上的历史记录。</p>
+<h2>2. 密钥和本地存储</h2>
+<p>EVM 助记词或私钥使用主密码派生的密钥加密后保存在扩展本地存储。隐私账户使用独立密码和独立随机 Seed，保存在加密隐私 Vault 中。当前新建 Vault 使用 PBKDF2-SHA256（600,000 次）与 AES-256-GCM；导入的兼容 Vault 可能使用不同迭代参数。</p>
+<p>钱包解锁时，密码、账户恢复材料和隐私解锁材料会在扩展可信会话存储及内存中使用；隐私 Seed 会交给本地证明引擎进行派生和证明计算。它们不是始终只以密文存在。手动锁定、到期或浏览器会话结束会按实现清理会话材料；这不保证对设备内存取证的绝对安全。新用户默认解锁有效期为 15 分钟，已保存的用户设置予以保留，可在设置中调整。</p>
+<p>Notes 和隐私余额同步状态保存在加密 IndexedDB；本地历史的部分详情加密。0.5.2 新写入恢复 journal 的金额、隐私收款方、nullifier、calldata 和核验资料亦加密保存；对应账户解锁时会加密迁移其旧 journal 和旧历史。尚未解锁账户的旧记录、已有备份或泄露副本不会自动完成迁移。公开钱包索引、链、操作 ID、时间、状态、hash、nonce 及请求编号等仍可能明文保留，不承诺零元数据。</p>
+<h2>3. 功能涉及的数据</h2>
+<div class="table-wrap"><table><thead><tr><th>功能</th><th>处理的数据</th><th>目的</th></tr></thead><tbody>
+<tr><td>账户与备份</td><td>账户名、地址、加密 Vault、用户输入的密码及恢复材料</td><td>本地账户创建、导入、解锁、恢复和签名</td></tr>
+<tr><td>网站连接</td><td>网站 origin、授权记录与当前标签页站点</td><td>provider 接入、展示当前连接、撤销权限</td></tr>
+<tr><td>签名及交易</td><td>网站提交的文本/意图、地址、金额、网络、费用、签名结果、证明和交易材料</td><td>展示确认信息并执行用户确认的请求</td></tr>
+<tr><td>资产同步</td><td>公开余额、池合约、区块范围、cmx、Merkle 路径、消费状态</td><td>同步并核对 Notes、余额与交易结果</td></tr>
+<tr><td>官网 Vault 导入</td><td>用户主动选择导入的、与 EVM 账户匹配的加密 Vault 和加密恢复检查点</td><td>恢复隐私账户及同步进度</td></tr>
+<tr><td>操作记录</td><td>操作 ID、状态、时间、交易 hash、费用、收款方及错误信息</td><td>本地展示、结果核对和避免重复提交</td></tr>
+</tbody></table></div>
+<p>扩展在匹配的 HTTP(S) 顶层页面注入钱包 provider，页面可能检测到钱包已安装。当前实现不使用浏览历史权限读取完整访问历史，不读取网站密码输入框或 Cookie 作为钱包导入来源；这不意味着扩展不接触任何网站信息。</p>
+<h2>4. 网络传输及接收方</h2>
+<ul>
+<li><strong>RPC：</strong>接收链上查询、公开账户地址、合约调用、估费及已签交易；实际请求因使用的功能而异。当前配置涉及 rpc.monad.xyz、rpc-mainnet.monadinfra.com、ethereum-rpc.publicnode.com、eth.drpc.org、rpc.flashbots.net、1rpc.io/eth、base-rpc.publicnode.com、mainnet.base.org、arbitrum-one-rpc.publicnode.com 和 arb1.arbitrum.io/rpc。</li>
+<li><strong>PLabs Indexer：</strong>monad-indexer.plabs.online 与 eth-indexer.plabs.online 接收池、cmx 等请求，用于获取 Merkle 路径及相关状态。查询可让服务方关联请求中的 note commitment。</li>
+<li><strong>PLabs Relayer：</strong>monad-relayer.plabs.online 与 eth-relayer.plabs.online 提供费用/执行策略、calldata、交易提交与状态查询。根据操作可接收公开存款账户、金额、证明 bundle、密文输出及交易参数。部分预览/证明准备阶段也会发出网络请求；取消最终提交不撤回已经发出的查询。</li>
+<li><strong>SQD Portal：</strong>portal.sqd.dev 提供历史公开链事件，接收数据集、池及区块范围等查询。</li>
+<li><strong>授权网站：</strong>获得获准共享的公开地址、网络信息、签名/操作结果。共享隐私地址需要独立确认，普通连接不自动共享隐私余额或完整 Notes。</li>
+<li><strong>图片与外部链接：</strong>连接栏使用本地图标，不再为此加载第三方网站的远程 favicon。用户点击区块浏览器或官网链接后会访问外部服务。</li>
+</ul>
+<p>网络服务可观察来源 IP、时间及必要 HTTP 元数据。是否保存日志、保存多久、处理地区及其他用途需要由对应服务商说明。<span class="pending">经营者控制的服务具体策略尚待确认，不在此承诺“服务器不留日志”。</span>原生 Gas 支付具有公开 EVM 付款关联；Relayer 支付也不自动隐藏网络身份。</p>
+<p>本次审查的客户端发送路径没有发现以上传助记词、私钥、隐私 Seed 或钱包密码为功能目的的请求；它们用于本地处理。源代码未配置广告或第三方用户行为分析 SDK。预编译证明引擎及后端仍需进一步审查，这些观察不是全面无泄露认证。</p>
+<h2>5. 使用目的及共享限制</h2>
+<p>本扩展的数据处理目的为提供用户请求的钱包功能、状态恢复和必要支持。<span class="pending">经营者在生效前需确认落实：</span>不出售个人数据，不将钱包数据用于广告或无关信用评估，不将访问权限用于与已说明钱包目的无关的用途；第三方处理协议与实际做法须一致。</p>
+<p>拟采用的 Limited Use 声明：We follow the Chrome Web Store User Data Policy and its Limited Use rules when using or sharing information obtained through Google APIs.</p>
+<h2>6. 留存与删除</h2>
+<p>本地 Vault、授权列表和设置持续保存在扩展浏览器配置中。当前历史归档最多保留 1,000 条终态记录，未决记录可持续保留；恢复 journal 另保留未决和近期条目。不会因关闭连接自动删除这些本地历史。</p>
+<p>可在钱包撤销网站连接并锁定会话。卸载扩展或清除相应浏览器配置可删除该配置中的本地扩展数据；用户导出的备份、系统备份和其他设备副本需要另行处理。删除前必须确认已保存 EVM 恢复材料及独立隐私 Vault 和密码，否则可能永久失去资产访问权。链上记录及已被第三方收到的数据不会因此删除；服务端请求的处理方式与期限需在经营者确定后补齐。</p>
+<h2>7. 备份与安全边界</h2>
+<p>本扩展为自托管工具，不提供密码找回或撤销已确认链上交易的能力。仅有 EVM 助记词无法恢复独立生成的隐私 Seed。修改隐私密码只影响当前 Vault 的加密包装，不改变隐私地址，也不能撤销已流出的旧 Vault 副本。任何人要求提供助记词、私钥、隐私密码或 Seed 进行“客服验证”，均不属于本政策所述支持流程。</p>
+<p>终端恶意软件、浏览器/扩展漏洞、被篡改的更新、恶意 dApp、合约问题和服务商异常仍可能影响资产或隐私。商店上架、构建完成或依赖扫描结果不代表已通过独立安全审计。</p>
+<h2>8. 联系、更正及政策变更</h2>
+<p class="pending">待填：运营主体、隐私/安全报告邮箱、请求处理期限、适用地区及必要的地区性权利说明。</p>
+<p>对数据访问、删除、错误更正或安全问题的请求，应发送至正式政策公布的联系渠道。公开自托管链上记录无法由钱包经营者单方修改或删除。政策变更将更新有效日期；如果新增数据用途或权限，应按适用要求另行说明或取得同意。</p>
+<footer>本页为本地发布准备草稿，未部署、未生效。依据当前客户端实现编写；经营者身份、后端日志与适用法律事项需补齐。<br>PLabs Privacy Wallet · 0.5.2</footer>
+</main></body></html>

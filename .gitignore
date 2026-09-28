@@ -1,0 +1,17 @@
+node_modules/
+dist/
+.DS_Store
+coverage/
+artifacts/
+*.tsbuildinfo
+vite.config.js
+vite.config.d.ts
+
+# Local environment secrets
+.env
+.env.*
+!.env.example
+
+# Generated release packages; keep store artwork
+releases/*
+!releases/store-assets/

@@ -1,0 +1,15 @@
+{
+  "typecheck_and_build": "passed",
+  "automated_tests": "not run at user request",
+  "real_signatures_or_transactions": "not performed",
+  "archive_matches_dist": true,
+  "broken_document_links": [],
+  "full_dependency_advisories": {
+    "info": 0,
+    "low": 0,
+    "moderate": 0,
+    "high": 0,
+    "critical": 0
+  },
+  "scope": "static source review, compilation, registry advisory scan and packaging only"
+}

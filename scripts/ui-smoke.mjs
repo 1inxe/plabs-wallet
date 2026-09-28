@@ -1,0 +1,191 @@
+import assert from 'node:assert/strict';
+import { mkdir } from 'node:fs/promises';
+import { chromium } from 'playwright-core';
+import { bech32m } from '@scure/base';
+
+const browser = await chromium.launch({ headless: true, executablePath: process.env.CHROME_BIN ?? '/Users/moli/Library/Caches/ms-playwright/chromium-1234/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing' });
+const page = await browser.newPage({ viewport: { width: 400, height: 700 } });
+const errors = [];
+page.on('pageerror', error => errors.push(error.message));
+await mkdir('artifacts/ui', { recursive: true });
+const privacyAddress = bech32m.encode('perc', bech32m.toWords(new Uint8Array(43).fill(7)), 1023);
+await page.addInitScript(({ privacyAddress }) => {
+  const address = '0x7EA6b8D49E17cB503eA4880c55490a07E467E761';
+  const state = { hasVault: true, unlocked: true, address, activeAccountId: 'one', accountName: 'Account 1', accounts: [{ id: 'one', name: 'Account 1', address }], chainId: 143, networkName: 'Monad' };
+  const privacy = { hasAccount: true, unlocked: true, privacyAddress, recoveryMode: 'birthday', canSync: true, automaticSync: true, status: 'ready', expiresAt: Date.now() + 15 * 60_000 };
+  const snapshots = [{ symbol: 'P20', poolAddress: '0x1111111111111111111111111111111111111111', decimals: 6, spendableBalanceRaw: '2062320000000', totalBalanceRaw: '2062320000000', spendableNotes: 16 }, { symbol: 'sUSDC', poolAddress: '0xcb36e209ae44fafc75dc6820ae42d9400637f99e', decimals: 6, spendableBalanceRaw: '7836800', totalBalanceRaw: '34756000', spendableNotes: 14, pendingNotes: 1 }].map(item => ({ version: 1, chainId: 143, privacyAddress, cursorBlock: 18429910, targetBlock: 18429910, cursorBlockHash: '0x1', syncState: 'complete', totalNotes: item.spendableNotes, pendingNotes: 0, spentNotes: 0, syncedAt: Date.now(), ...item }));
+  const transactionSettings = { experimentalPrivacyWrites: false };
+  window.__calls = [];
+  window.__fixture = { state, privacy };
+  const event = { addListener() {}, removeListener() {} };
+  window.chrome = { tabs: { query: async () => [], onActivated: event, onUpdated: event }, windows: { onFocusChanged: event }, storage: { onChanged: { addListener() {}, removeListener() {} } }, runtime: { getManifest: () => ({ version: '0.5.4' }), onMessage: { addListener() {}, removeListener() {} }, sendMessage: async message => {
+    window.__calls.push(message);
+    const ok = result => ({ ok: true, result });
+    switch (message.action) {
+      case 'GET_PENDING_PRIVACY_OPERATION': case 'GET_PRIVACY_MERGE_PLAN': case 'GET_DAPP_UI_STATE': case 'GET_ACTIVE_SITE_CONNECTION': return ok(null);
+      case 'GET_PRIVACY_ACTIVITY': return ok({ items: [], total: 0, page: 1, pages: 1, pageSize: 20 });
+      case 'GET_STATE': return ok({ ...state });
+      case 'GET_PRIVACY_STATE': return ok({ ...privacy });
+      case 'GET_PRIVACY_SNAPSHOTS': return ok(snapshots);
+      case 'SYNC_PRIVACY':
+        if (window.__failP20Sync) {
+          snapshots[1].totalBalanceRaw = '134756000';
+          snapshots[1].spendableBalanceRaw = '108836800';
+          return { ok: false, error: { message: '部分隐私资产同步失败：P20: RPC unavailable' } };
+        }
+        return ok(snapshots);
+      case 'GET_VISIBLE_PRIVACY_ASSETS': return ok([]);
+      case 'GET_PUBLIC_ASSETS': return ok([{ chainId: 143, type: 'native', address: null, symbol: 'MON', decimals: 18, balanceRaw: '79590700000000000000', formatted: '79.5907', manuallyAdded: false }, { chainId: 143, type: 'erc20', address, symbol: 'USDC', decimals: 6, balanceRaw: '1305500', formatted: '1.3055', manuallyAdded: true }]);
+      case 'GET_PRIVACY_SYNC_PROGRESS': return ok({ chainId: 143, progress: 100, message: '同步完成', status: 'complete' });
+      case 'GET_LOCK_SETTINGS': return ok({ walletMinutes: 1440, privacyMinutes: 15, lockOnBrowserClose: true });
+      case 'GET_PRIVACY_FEE_QUOTE': return ok({ paymentMode: 'native', feePool: message.poolAddress, feeRaw: '0', feeDecimals: 6, feeSymbol: 'P20', options: [] });
+      case 'GET_TRANSACTION_SETTINGS': return ok({ ...transactionSettings });
+      case 'GET_PERMISSIONS': return ok({ 'https://app.plabs.online': true });
+      case 'REVOKE_PERMISSION': return ok({});
+      case 'SET_LOCK_SETTINGS': return ok(message);
+      case 'SET_TRANSACTION_SETTINGS': Object.assign(transactionSettings, { experimentalPrivacyWrites: message.experimentalPrivacyWrites }); return ok({ ...transactionSettings });
+      case 'ADD_PUBLIC_ASSET': case 'ADD_VISIBLE_PRIVACY_ASSET': return ok({});
+      case 'RENAME_ACCOUNT': state.accountName = message.name; return ok({ ...state });
+      case 'LOCK_PRIVACY': privacy.unlocked = false; privacy.canSync = false; privacy.status = 'locked'; return ok({ ...privacy });
+      case 'UNLOCK_PRIVACY': if (message.password !== 'privacy test 42!') return { ok: false, error: { message: '隐私密码错误' } }; privacy.unlocked = true; privacy.canSync = true; return ok({ ...privacy });
+      case 'LOCK': state.unlocked = false; privacy.unlocked = false; return ok({ ...state });
+      case 'UNLOCK': if (message.password !== 'wallet test 42!') return { ok: false, error: { message: '钱包密码错误' } }; state.unlocked = true; return ok({ ...state });
+      case 'PREPARE_PRIVACY_OPERATION': return ok({ id: 'review-one', kind: message.kind, network: 'Monad', symbol: 'P20', paymentMode: 'native', feeSymbol: 'P20', receiveSymbol: 'P20', totalDebit: message.amount, feeIncluded: false, amount: message.amount, fee: '0.1', receive: String(Number(message.amount) - 0.1), recipient: message.recipient, approvalCount: 0, estimatedGas: '21000', maxGasCost: '0.001', nativeSymbol: 'MON' });
+      case 'SUBMIT_PRIVACY_OPERATION': return ok({ txHash: '0x' + 'a'.repeat(64) });
+      case 'EXPORT_PRIVACY_VAULT': return ok({ version: 1, ciphertext: 'encrypted-fixture-only' });
+      default: return { ok: false, error: { message: 'Unknown fixture action: ' + message.action } };
+    }
+  } } };
+}, { privacyAddress });
+const screenshot = async name => { await page.screenshot({ path: `artifacts/ui/${name}.png`, fullPage: true }); };
+const noOverflow = async () => assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'Unexpected horizontal overflow');
+try {
+  await page.goto('http://localhost:5173/popup.html');
+  await page.getByText('2062320', { exact: true }).waitFor();
+  await page.locator('.valuation-status').getByText('价格预言机待接入', { exact: false }).waitFor();
+  await page.getByText('34.756', { exact: true }).waitFor();
+  await page.getByText('可花费 7.8368 · 待确认 26.9192', { exact: true }).waitFor();
+  await page.getByRole('button', { name: '余额不一致？重新扫描历史' }).click();
+  assert(await page.evaluate(() => window.__calls.some(call => call.action === 'SYNC_PRIVACY' && call.rescan === true)));
+  await screenshot('home-unlocked'); await noOverflow();
+  assert(await page.getByRole('button', { name: 'Swap', exact: true }).isDisabled());
+  for (const width of [380, 400, 420]) { await page.setViewportSize({ width, height: 700 }); await noOverflow(); }
+  await page.setViewportSize({ width: 400, height: 700 });
+  // A failed P20 sync must not leave successfully updated sUSDC hidden behind
+  // the previous render. These balances are fixtures, not a live-wallet check.
+  await page.evaluate(() => { window.__failP20Sync = true; });
+  await page.getByRole('button', { name: '同步隐私资产', exact: true }).click();
+  await page.getByText('134.756', { exact: true }).waitFor();
+  await page.getByText('可花费 108.8368 · 待确认 25.9192', { exact: true }).waitFor();
+  await page.getByText('部分隐私资产同步失败：P20: RPC unavailable', { exact: true }).waitFor();
+  await page.evaluate(() => { window.__failP20Sync = false; });
+  await page.getByRole('button', { name: '同步隐私资产', exact: true }).click();
+  await page.getByText('部分隐私资产同步失败：P20: RPC unavailable', { exact: true }).waitFor({ state: 'hidden' });
+  if (process.env.UI_SMOKE_SCOPE === 'privacy-sync') {
+    assert.deepEqual(errors, []);
+    console.log('Privacy sync UI passed: balances, rescan, partial failure refresh, responsive widths.');
+  } else {
+  // Navigation pages replace the previous screen, including nested selectors.
+  await page.getByRole('button', { name: '选择网络' }).click();
+  await page.getByRole('heading', { name: '选择网络' }).waitFor();
+  assert.equal(await page.getByRole('dialog').count(), 0);
+  assert(await page.locator('#root').isHidden());
+  await screenshot('network-page'); await noOverflow();
+  await page.getByRole('button', { name: '返回', exact: true }).click();
+  await page.getByRole('button', { name: 'EVM 地址二维码' }).click();
+  await page.getByRole('heading', { name: 'EVM 公开地址' }).waitFor();
+  await screenshot('public-receive-page');
+  await page.getByRole('button', { name: '返回', exact: true }).click();
+  await page.getByRole('button', { name: '隐藏隐私余额' }).click();
+  assert.equal(await page.getByText('2062320', { exact: true }).count(), 0);
+  await page.getByRole('button', { name: '查看 P20 资产详情' }).click();
+  assert.equal(await page.getByText('2062320', { exact: true }).count(), 0);
+  await page.getByRole('button', { name: '返回资产列表' }).click();
+  await page.getByRole('button', { name: '显示隐私余额' }).click();
+  await page.getByRole('button', { name: '查看 P20 资产详情' }).click();
+  await screenshot('asset-detail'); await noOverflow();
+  await page.getByRole('button', { name: '返回资产列表' }).click();
+  await page.getByRole('button', { name: '添加资产', exact: true }).click();
+  await page.getByPlaceholder('0x…', { exact: true }).fill('invalid');
+  assert(await page.getByRole('button', { name: '添加', exact: true }).isDisabled());
+  await page.getByRole('tab', { name: '隐私资产', exact: true }).click();
+  await page.getByRole('button', { name: '选择隐私资产' }).click();
+  await page.getByRole('heading', { name: '选择隐私资产' }).waitFor();
+  await page.getByRole('button', { name: '返回', exact: true }).click();
+  await page.getByRole('heading', { name: '添加资产' }).waitFor();
+  await screenshot('add-asset-page');
+  await page.getByRole('button', { name: '返回', exact: true }).click();
+  assert(await page.locator('#root').isVisible());
+  await page.getByRole('button', { name: 'Send', exact: true }).click();
+  await page.getByRole('button', { name: /P20.*可花费/ }).click();
+  await page.getByLabel('搜索账户或输入收款地址').fill(privacyAddress);
+  await page.getByRole('button', { name: '使用此地址' }).click();
+  await page.getByLabel('金额', { exact: true }).fill('1');
+  assert(await page.getByRole('button', { name: '生成证明并预览隐私转账' }).isDisabled());
+  await page.getByRole('button', { name: '前往设置', exact: true }).click();
+  await page.getByRole('switch', { name: '实验性主网操作' }).click();
+  await page.getByRole('button', { name: '保存设置' }).click();
+  await page.getByText('设置已保存').waitFor();
+  await page.getByRole('button', { name: '返回', exact: true }).click();
+  await page.getByRole('button', { name: 'Send', exact: true }).click();
+  await page.getByRole('button', { name: /P20.*可花费/ }).click();
+  await page.getByLabel('搜索账户或输入收款地址').fill('perc1invalid');
+  assert.equal(await page.getByRole('button', { name: '使用此地址' }).count(), 0);
+  await page.getByLabel('搜索账户或输入收款地址').fill(privacyAddress);
+  await page.getByRole('button', { name: '使用此地址' }).click();
+  await page.getByRole('heading', { name: '主隐私账户' }).waitFor();
+  await page.getByRole('button', { name: '25%', exact: true }).click();
+  assert.equal(await page.getByLabel('金额', { exact: true }).inputValue(), '515580');
+  await page.getByLabel('金额', { exact: true }).fill('999999999');
+  await page.getByText('金额超过可用余额').waitFor();
+  await page.getByLabel('金额', { exact: true }).fill('50000');
+  await screenshot('send'); await noOverflow();
+  await page.getByRole('button', { name: '生成证明并预览隐私转账' }).click();
+  await page.getByRole('button', { name: '确认并广播', exact: true }).waitFor();
+  assert.equal(await page.evaluate(() => window.__calls.filter(x => x.action === 'SUBMIT_PRIVACY_OPERATION').length), 0);
+  await screenshot('review');
+  await page.getByRole('button', { name: '确认并广播' }).click();
+  await page.getByRole('heading', { name: '交易已确认' }).waitFor();
+  await page.getByRole('button', { name: '完成', exact: true }).click();
+  await page.getByRole('button', { name: 'Unshield', exact: true }).click();
+  await page.getByRole('button', { name: 'MAX', exact: true }).click();
+  assert.equal(await page.getByLabel('金额', { exact: true }).inputValue(), '7.8368');
+  await screenshot('unshield'); await page.getByRole('button', { name: '返回', exact: true }).click();
+  await page.getByRole('button', { name: 'Receive', exact: true }).click();
+  assert.equal(await page.locator('.qr-code svg').count(), 1); await screenshot('receive');
+  await page.getByRole('button', { name: '完成', exact: true }).click();
+  await page.getByRole('button', { name: '单独锁定隐私' }).click();
+  await page.getByRole('button', { name: '解锁隐私资产', exact: false }).click();
+  await screenshot('privacy-unlock');
+  await page.getByPlaceholder('输入独立隐私密码', { exact: true }).fill('wrong');
+  await page.getByRole('button', { name: '立即解锁隐私资产' }).click();
+  await page.getByText('隐私密码错误', { exact: true }).waitFor();
+  await page.getByPlaceholder('输入独立隐私密码', { exact: true }).fill('privacy test 42!');
+  await page.getByRole('button', { name: '立即解锁隐私资产' }).click();
+  await page.getByRole('button', { name: '设置', exact: true }).click();
+  await screenshot('settings'); await noOverflow();
+  await page.getByRole('tablist', { name: 'EVM 自动锁定', exact: true }).getByRole('tab', { name: '1h', exact: true }).click();
+  await page.getByRole('button', { name: '保存设置' }).click();
+  await page.getByText('设置已保存').waitFor();
+  assert.equal(await page.evaluate(() => window.__calls.findLast(x => x.action === 'SET_LOCK_SETTINGS').walletMinutes), 60);
+  const download = page.waitForEvent('download'); await page.getByRole('button', { name: '导出 JSON' }).click();
+  assert.match((await download).suggestedFilename(), /^plabs-vault-/);
+  await page.getByRole('button', { name: '返回', exact: true }).click();
+  await page.evaluate(() => chrome.runtime.sendMessage({ action: 'LOCK' }));
+  await page.getByRole('heading', { name: 'Plabs Privacy Wallet' }).waitFor(); await screenshot('unlock');
+  await page.getByPlaceholder('请输入钱包主密码').fill('wallet test 42!');
+  await page.getByRole('button', { name: '解锁钱包', exact: true }).click();
+  await page.getByRole('button', { name: '选择账户' }).click();
+  await page.getByRole('heading', { name: '账户管理' }).waitFor();
+  await screenshot('accounts-page');
+  await page.getByRole('button', { name: '添加账户' }).click();
+  await screenshot('create-wallet');
+  await page.getByRole('tab', { name: '导入钱包' }).click(); await screenshot('import-wallet');
+  assert.deepEqual(errors, []);
+  console.log('UI smoke passed: full-page and nested navigation, masked balances, oracle pending state, transaction setting gate, responsive widths, input validation, prepare/confirm separation, lock/unlock, QR, settings, vault download.');
+  }
+} catch (error) {
+  await screenshot('failure');
+  console.error('Page errors:', errors, 'Visible text:', await page.locator('body').innerText());
+  throw error;
+} finally { await browser.close(); }

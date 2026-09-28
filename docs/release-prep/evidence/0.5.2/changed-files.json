@@ -1,0 +1,23 @@
+[
+  "src/background.ts",
+  "src/content.ts",
+  "src/popup/main.tsx",
+  "src/privacy/history.ts",
+  "src/privacy/journal.ts",
+  "src/privacy/merge.ts",
+  "src/privacy/offscreen.ts",
+  "src/privacy/vault.ts",
+  "src/shared/dapp-boundary.ts",
+  "src/shared/network-response.ts",
+  "src/shared/types.ts",
+  "src/shared/vault-limits.ts",
+  "src/shared/vault.ts",
+  "src/ui/connected-site.tsx",
+  "src/ui/privacy-notes.tsx",
+  "src/ui/wallet-design.tsx",
+  "public/manifest.json",
+  "package.json",
+  "pnpm-lock.yaml",
+  "scripts/package-store.py",
+  "scripts/vendor-assets.lock.json"
+]

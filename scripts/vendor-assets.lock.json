@@ -1,0 +1,85 @@
+{
+  "purpose": "Baseline byte identity only; upstream license, source and independent security review remain pending.",
+  "assets": [
+    {
+      "path": "fonts/font-0.ttf",
+      "sha256": "1b08e7fc267a5c7e1d614100f604b83e7e8a0be241f0f288faa2b3ac93a683ba"
+    },
+    {
+      "path": "fonts/font-1.ttf",
+      "sha256": "8c883f63b2c4157d997319f2c8bc6995ed4357ef371940d31ca159004a4aae63"
+    },
+    {
+      "path": "fonts/font-2.ttf",
+      "sha256": "e7a1aaf7eda9f2fad4131725fa556265ec75ca7b2d756260173a040363e8d4f7"
+    },
+    {
+      "path": "fonts/font-3.ttf",
+      "sha256": "b37284b5701b6b168dfc770aa1a4ac492106422fd3ba76bc7641e37434e8019c"
+    },
+    {
+      "path": "fonts/font-4.ttf",
+      "sha256": "44ce4a84f20d60f24539bd0cef11f79c29e38609e0f8adf18551c9794a5d9dc3"
+    },
+    {
+      "path": "fonts/font-5.ttf",
+      "sha256": "3386a05f6ece969e4537de6be894170d20558e82f7d56c8c5d332972ef172160"
+    },
+    {
+      "path": "fonts/font-6.ttf",
+      "sha256": "df54dbfafba61d4911eb3dab9bba2d20531fb009f01d64dd42fa96ab862584d8"
+    },
+    {
+      "path": "groth16/action/action.wasm",
+      "sha256": "100edcd98f90e439ab788aaa20fb674718a74fbaa2c714dc55ad568346d30e4a"
+    },
+    {
+      "path": "groth16/action/action_final.zkey",
+      "sha256": "ffa86bc1ed84731df1d56b756b35e349a8ef01b1030423977e0499cdb600480e"
+    },
+    {
+      "path": "groth16/binding/binding.wasm",
+      "sha256": "0b72c20c86f1129fe24255132f996085dd2c9ca2022e675b3eef75ca7ad9ad3b"
+    },
+    {
+      "path": "groth16/binding/binding_final.zkey",
+      "sha256": "5422e7541bf257c12271c731fad104c3e86ccdf99df1c640fe7067e2e0814a48"
+    },
+    {
+      "path": "groth16-prover.bundle.js",
+      "sha256": "122efa28783ba030a3a938687de47f732b5da64a3302b3456227b21a08c618d8"
+    },
+    {
+      "path": "native-rpc-sync.worker.js",
+      "sha256": "4ca104efbcb67cb445d548e26e67094aeb2dbabb373a957db7070c4682503f54"
+    },
+    {
+      "path": "wasm/41df131b8bd26c05553de528fe2db7e9dd8b24d0ecbcff6c8067a846891ae016/privacybtc_wasm_prover.js",
+      "sha256": "af01e701a4184f23378fa7141fedf156ef54849941b64270f2da9611aea70dcb"
+    },
+    {
+      "path": "wasm/41df131b8bd26c05553de528fe2db7e9dd8b24d0ecbcff6c8067a846891ae016/privacybtc_wasm_prover_bg.wasm",
+      "sha256": "ac3ea7073d68c9ca4b5c7999cb93b83e8e7ba44a2ee91b320012a5e6c48c40fe"
+    },
+    {
+      "path": "dex/groth16-prover.bundle.js",
+      "sha256": "da9c19d13241d91bd21d504aea487670b4793b86682c06247ee8fb24eee72de8"
+    },
+    {
+      "path": "dex/wasm/aaeba55a93a41b4221ffd0f7b6f41c83e077c331da9deb945e18e006373c6a78/privacybtc_wasm_prover.js",
+      "sha256": "e43f432b1e689bcab5fd37c6a513d4a462a5d0fdc439dc884a48e86a35ff0346"
+    },
+    {
+      "path": "dex/wasm/aaeba55a93a41b4221ffd0f7b6f41c83e077c331da9deb945e18e006373c6a78/privacybtc_wasm_prover_bg.wasm",
+      "sha256": "b48819ab6bdf30f02acd6664080b675f5cf12b162253a40789668cf7b44b2f44"
+    },
+    {
+      "path": "dex/wasm/asset-manifest.json",
+      "sha256": "0a027fd37e640a49b3143e1ef2a2be099514a246096a5a0b486eb80f8fed5ec6"
+    },
+    {
+      "path": "wasm/aaeba55a93a41b4221ffd0f7b6f41c83e077c331da9deb945e18e006373c6a78/privacybtc_wasm_prover.js",
+      "sha256": "e43f432b1e689bcab5fd37c6a513d4a462a5d0fdc439dc884a48e86a35ff0346"
+    }
+  ]
+}
