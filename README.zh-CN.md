@@ -27,6 +27,14 @@ pnpm run build
 
 修改源码后重新构建，并在 `chrome://extensions` 重新加载扩展。刷新已连接的网站，使其加载更新后的 provider。
 
+## 自动打包与发布
+
+推送到 `main` 后，Actions 自动构建、校验资源、创建 tag 并发布 GitHub Release，附件包含扩展 ZIP 和 SHA-256 校验文件，无需手动打标签。PR 仅构建，不发布。
+
+自动版本使用 `package.json` 的三段基础版本加 Actions 运行编号，例如 `0.8.1.5`，对应 tag 为 `v0.8.1.5`。构建时同步写入插件 manifest，tag 指向该次推送的源码提交；不会产生额外的版本提交。重跑同一次 Actions 使用相同版本，已发布的附件只校验、不覆盖。也可在 `main` 手动运行工作流，或推送与基础版本匹配的 `v*` 标签。
+
+从 [Releases](https://github.com/1inxe/plabs-wallet/releases) 下载 `plabs-wallet-extension-*-store.zip`，解压后按上述步骤安装。
+
 ## 设置钱包
 
 1. 创建钱包，或导入助记词/私钥。

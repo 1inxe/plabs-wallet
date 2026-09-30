@@ -27,6 +27,14 @@ pnpm run build
 
 After changing the source, rebuild and reload the extension on `chrome://extensions`. Refresh connected websites so they load the updated provider.
 
+## Automatic packages and releases
+
+Every push to `main` builds and verifies the extension, creates a tag, and publishes a GitHub Release with the extension ZIP and SHA-256 checksum. No manual tagging is needed. Pull requests build without publishing.
+
+Automatic versions append the Actions run number to the three-part base version in `package.json`: for example, `0.8.1.5` produces tag `v0.8.1.5`. The build stamps the extension manifest, while the tag points to the pushed source commit without an extra version commit. Reruns reuse the same version and verify rather than overwrite published assets. You can also dispatch the workflow on `main` or push a `v*` tag matching the base version.
+
+Download `plabs-wallet-extension-*-store.zip` from [Releases](https://github.com/1inxe/plabs-wallet/releases), unzip it, and follow the installation steps above.
+
 ## Set up your wallet
 
 1. Create a wallet or import a mnemonic/private key.
