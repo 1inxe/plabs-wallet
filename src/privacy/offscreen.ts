@@ -1198,6 +1198,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       const keys = await deriveKeys(message.seedHex);
       return { privacyAddress: `0x${keys.raw_address_hex}`, rawAddressHex: keys.raw_address_hex };
     }
+    if (message.action === 'PRIVACY_PROVE_OWNERSHIP') {
+      const active = session;
+      if (!active || active.keys.raw_address_hex !== message.rawAddress) throw new Error('隐私会话已变化');
+      if (typeof message.message !== 'string' || !message.message.trim() || message.message.length > 8192) throw new Error('所有权证明消息无效');
+      const proof = await callProver('privacy_address_ownership_sign', {
+        bn254_ivk_hex: active.keys.bn254_ivk_hex, raw_address_hex: active.keys.raw_address_hex, message: message.message,
+      });
+      if (session !== active) throw new Error('隐私会话已变化');
+      return proof;
+    }
     if (message.action === 'PRIVACY_PROVER_HEALTH') return callProver('init', {});
     if (message.action === 'PRIVACY_SYNC_POOL') return syncPool(message.chainId, message.poolAddress, message.rescan === true);
     if (message.action === 'PRIVACY_PREPARE_OPERATION') return preparePrivacyOperation(message.input);

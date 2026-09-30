@@ -98,3 +98,13 @@ const result = await wallet.privacy.sendTransaction({
 | `-32602` | 参数错误 |
 | `-32002` | 已有待处理交互请求 |
 | `4900` | 扩展连接中断，需刷新网页 |
+
+## Privacy ownership proof
+
+`plabs_getCapabilities` advertises `methods.privacyOwnership`. `plabs_getPrivacyAddress` also returns `rawAddress` (43-byte, `0x`-prefixed) after address disclosure approval.
+
+Call `plabs_provePrivacyOwnership` with `[{ message, privacyAddress }]` for a separate approval. `message` must be non-empty and at most 8192 characters; `privacyAddress` must match the unlocked privacy account. The result contains only `{ version: 'bjj-schnorr-v1', r_x_hex, r_y_hex, s_hex }`. Keys remain in the extension. Rejection, cancellation, permission changes and wallet/session changes prevent proof disclosure.
+
+PLabs Network uses this proof for `/privasea/whitelist/qualification/challenge` and `/privasea/whitelist/qualification/check`, following EVM `/auth/challenge` and `/auth/login`. These operations do not broadcast transactions.
+
+Run `node --experimental-transform-types --test tests/privacy-ownership.test.mjs` to test the approval boundary and the bundled WASM with synthetic keys.
