@@ -96,3 +96,11 @@ export const decryptMnemonic = async (vault: EncryptedVault, password: string) =
   if (vault.secretType === 'privateKey') throw new Error('该账户由私钥导入，没有助记词');
   return decryptWalletSecret(vault, password);
 };
+
+// Always decrypt the persisted vault to re-authenticate each export.
+export const exportWalletSecret = async (vault: EncryptedVault, password: string, type: 'mnemonic' | 'privateKey'): Promise<string> => {
+  const secret = await decryptWalletSecret(vault, password);
+  if (type === 'privateKey') return walletFromSecret(secret).privateKey;
+  if (vault.secretType === 'privateKey') throw new Error('该账户由私钥导入，没有助记词');
+  return secret;
+};

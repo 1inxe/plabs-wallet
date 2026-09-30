@@ -198,6 +198,7 @@ export interface EncryptedVault {
 }
 
 export interface WalletAccountSummary {
+  hasMnemonic?: boolean;
   id: string;
   name: string;
   address: string;

@@ -65,7 +65,7 @@ import type {
   PrivacyNoteSummary,
   PrivacyNotesPage,
 } from './shared/types';
-import { createMnemonic, decryptMnemonic, decryptWalletSecret, encryptMnemonic, encryptPrivateKey, walletFromSecret } from './shared/vault';
+import { createMnemonic, exportWalletSecret, decryptWalletSecret, encryptMnemonic, encryptPrivateKey, walletFromSecret } from './shared/vault';
 import {
   createPrivacyVault,
   changePrivacyVaultPassword,
@@ -392,14 +392,14 @@ const walletState = async (): Promise<WalletState> => {
     activeAccountId: account?.id ?? null,
     accountName: account?.name ?? null,
     pendingBackupAccountId: account?.backupPending ? account.id : null,
-    accounts: accounts.map(({ id, name, address }) => {
+    accounts: accounts.map(({ id, name, address, vault }) => {
       const privacy = privacyAccounts[address.toLowerCase()];
       let displayAddress: string | undefined;
       if (privacy) {
         try { displayAddress = formatPrivacyAddress(parsePrivacyAddress(privacy.rawAddressHex || privacy.privacyAddress)); }
         catch { /* Do not let a corrupt optional address block the wallet. */ }
       }
-      return { id, name, address, ...(displayAddress ? { privacyAddress: displayAddress } : {}) };
+      return { id, name, address, hasMnemonic: vault.secretType !== 'privateKey', ...(displayAddress ? { privacyAddress: displayAddress } : {}) };
     }),
     chainId,
     networkName: NETWORKS[chainId].name,
@@ -2137,7 +2137,27 @@ const dappHistory = (origin: string, input: unknown): Promise<PrivacyHistoryPage
 };
 const requestDappPrivacyAddress = async (origin: string) => {
   const session = await privacyAccess.request(origin, { scopes: ['address'] });
-  return { address: session.address, chainId: session.chainId };
+  return { address: session.address, rawAddress: `0x${parsePrivacyAddress(session.address!)}`, chainId: session.chainId };
+};
+const proveDappPrivacyOwnership = async (origin: string, params: unknown[]) => {
+  const input = params[0] as Record<string, unknown> | undefined;
+  if (params.length !== 1 || !input || typeof input !== 'object' || Array.isArray(input) ||
+      Object.keys(input).some(key => !['message', 'privacyAddress'].includes(key)) ||
+      typeof input.message !== 'string' || !input.message.trim() || input.message.length > 8192 ||
+      typeof input.privacyAddress !== 'string') throw new RpcError(-32602, '隐私所有权证明参数无效');
+  const expected = parsePrivacyAddress(input.privacyAddress);
+  const context = await readContext(origin);
+  if (parsePrivacyAddress(context.privacyAddress) !== expected) throw new RpcError(4100, '隐私账户与查询地址不匹配');
+  const check = async () => { assertDappNotCancelled(origin); await assertReadContext(context); };
+  const approved = await requestApproval({ origin, kind: 'personal_sign', title: '证明隐私地址所有权', details: {
+    网站: origin, 公网账户: context.account, 隐私地址: context.privacyAddress, 消息: input.message,
+    操作: '向此网站提供隐私地址所有权证明，可用于白名单资格检查；不会广播交易，也不会共享私钥',
+  } });
+  if (!approved) throw new RpcError(4001, '用户拒绝隐私所有权证明');
+  await check();
+  const proof = await callPrivacyEngine('PRIVACY_PROVE_OWNERSHIP', { message: input.message, rawAddress: expected });
+  await check();
+  return proof;
 };
 const DAPP_OPERATIONS_KEY = 'dappPrivacyOperations';
 interface DappOperationBinding { origin: string; walletAddress: string; chainId: ChainId; result?: { id: string; state: string; txHash?: string; message?: string } }
@@ -2270,7 +2290,7 @@ const authorizeOperation = async (operation: PreparedOperation) => {
 };
 let lastDappWalletOpen = 0;
 const interactiveDapps = new Set<string>();
-const INTERACTIVE_DAPP_METHODS = new Set(['plabs_connect', 'eth_requestAccounts', 'wallet_requestPermissions', 'personal_sign', 'wallet_switchEthereumChain', 'plabs_previewTransaction', 'plabs_getPrivacyAddress', 'plabs_sendPrivacyTransaction', 'plabs_requestPrivacyAccess', 'plabs_importOfficialDexOrders', 'plabs_placeDexOrder', 'plabs_resumeDexOrder', 'plabs_cancelDexOrder', 'plabs_collectDexPayouts']);
+const INTERACTIVE_DAPP_METHODS = new Set(['plabs_connect', 'eth_requestAccounts', 'wallet_requestPermissions', 'personal_sign', 'wallet_switchEthereumChain', 'plabs_previewTransaction', 'plabs_getPrivacyAddress', 'plabs_provePrivacyOwnership', 'plabs_sendPrivacyTransaction', 'plabs_requestPrivacyAccess', 'plabs_importOfficialDexOrders', 'plabs_placeDexOrder', 'plabs_resumeDexOrder', 'plabs_cancelDexOrder', 'plabs_collectDexPayouts']);
 const handleDappRequest = async (request: ProviderRequest, origin: string) => {
   if (request.method === 'plabs_connect' || request.method === 'plabs_requestPrivacyAccess') {
     const scopes = readScopes(Array.isArray(request.params) ? request.params[0] : undefined);
@@ -2283,7 +2303,7 @@ const handleDappRequest = async (request: ProviderRequest, origin: string) => {
   if (!interactive) return dispatchDappRequest(request, origin);
   if (interactiveDapps.size || isDappUiRunning(activeDappUi)) throw new RpcError(-32002, '钱包中已有待处理请求，请先处理或取消');
   interactiveDapps.add(origin);
-  const task: ActiveDappUi = { id: crypto.randomUUID(), origin, method: request.method, phase: 'unlock-wallet', requiresPrivacy: ['plabs_connect', 'plabs_getPrivacyAddress', 'plabs_sendPrivacyTransaction', 'plabs_requestPrivacyAccess', 'plabs_importOfficialDexOrders', 'plabs_placeDexOrder', 'plabs_resumeDexOrder', 'plabs_cancelDexOrder', 'plabs_collectDexPayouts'].includes(request.method), canCancel: true, cancelled: false, createdAt: Date.now() };
+  const task: ActiveDappUi = { id: crypto.randomUUID(), origin, method: request.method, phase: 'unlock-wallet', requiresPrivacy: ['plabs_connect', 'plabs_getPrivacyAddress', 'plabs_provePrivacyOwnership', 'plabs_sendPrivacyTransaction', 'plabs_requestPrivacyAccess', 'plabs_importOfficialDexOrders', 'plabs_placeDexOrder', 'plabs_resumeDexOrder', 'plabs_cancelDexOrder', 'plabs_collectDexPayouts'].includes(request.method), canCancel: true, cancelled: false, createdAt: Date.now() };
   activeDappUi = task;
   try {
     if (!await openWalletPopup()) throw new RpcError(4900,'无法打开钱包确认窗口。请点击浏览器工具栏的 PLabs Wallet 图标，再重试请求。');
@@ -2333,7 +2353,7 @@ const dispatchDappRequest = async (request: ProviderRequest, origin: string) => 
       return { opened: await openWalletPopup() };
     }
     case 'plabs_getCapabilities':
-      return { version: 1, methods: { personalSign: true, signTypedData: false, evmTransactions: false, evmPreview: true, privacyTransactions: true, privacyRead: true, privacyHistory: true, privacyNotes: true, dexOrders: true, dexTrading: true, unifiedConnect: true }, networks: Object.values(NETWORKS).map(network => ({ chainId: network.chainId, name: network.name, nativeSymbol: network.nativeSymbol, pools: (network.plabs?.pools ?? []).map(pool => ({ address: pool.address, symbol: pool.symbol, decimals:pool.decimals, underlying:pool.underlying, canShield: Boolean(pool.underlying && !pool.nativeGateway), canUnshield: network.chainId === 143 && pool.symbol === 'sUSDC' })) })) };
+      return { version: 1, methods: { personalSign: true, signTypedData: false, evmTransactions: false, evmPreview: true, privacyTransactions: true, privacyRead: true, privacyHistory: true, privacyNotes: true, dexOrders: true, dexTrading: true, unifiedConnect: true, privacyOwnership: true }, networks: Object.values(NETWORKS).map(network => ({ chainId: network.chainId, name: network.name, nativeSymbol: network.nativeSymbol, pools: (network.plabs?.pools ?? []).map(pool => ({ address: pool.address, symbol: pool.symbol, decimals:pool.decimals, underlying:pool.underlying, canShield: Boolean(pool.underlying && !pool.nativeGateway), canUnshield: network.chainId === 143 && pool.symbol === 'sUSDC' })) })) };
     case 'plabs_requestPrivacyAccess':
       return privacyAccess.request(origin, params[0]);
     case 'plabs_getPrivacySession': {
@@ -2356,6 +2376,8 @@ const dispatchDappRequest = async (request: ProviderRequest, origin: string) => 
     case 'plabs_getNotes': return dappNotes(origin,params[0]);
     case 'plabs_previewTransaction':
       return previewDappTransaction(origin, params[0]);
+    case 'plabs_provePrivacyOwnership':
+      return proveDappPrivacyOwnership(origin, params);
     case 'plabs_getPrivacyAddress':
       return requestDappPrivacyAddress(origin);
     case 'plabs_sendPrivacyTransaction':
@@ -2878,15 +2900,27 @@ const dispatchRuntimeMessage = async (message: Record<string, unknown>, sender: 
       return getPermissions();
     case 'REVOKE_PERMISSION':
       return changeOriginPermission(String(message.origin ?? ''), false);
-    case 'REVEAL_WALLET_SECRET': {
+    case 'REVEAL_WALLET_SECRET':
+    case 'REVEAL_MNEMONIC':
+    case 'EXPORT_WALLET_SECRET': {
+      if (pageUrl?.pathname !== '/popup.html') throw new Error('请在钱包插件面板中导出');
+      const epoch = operationEpoch;
+      const wallet = requireUnlocked();
       const account = await activeAccount();
-      if (!account) throw new Error('钱包不存在');
-      return { secret: await decryptWalletSecret(account.vault, String(message.password ?? '')), type: account.vault.secretType ?? 'mnemonic' };
-    }
-    case 'REVEAL_MNEMONIC': {
-      const account = await activeAccount();
-      if (!account) throw new Error('钱包不存在');
-      return { phrase: await decryptMnemonic(account.vault, String(message.password ?? '')) };
+      if (!account || account.address.toLowerCase() !== wallet.address.toLowerCase() ||
+          (message.action === 'EXPORT_WALLET_SECRET' && account.id !== message.accountId)) {
+        throw new Error('账户已变化，请重新导出');
+      }
+      const type = message.action === 'REVEAL_MNEMONIC' ? 'mnemonic'
+        : message.action === 'REVEAL_WALLET_SECRET' ? account.vault.secretType ?? 'mnemonic' : message.type;
+      if (type !== 'mnemonic' && type !== 'privateKey') throw new Error('不支持的导出类型');
+      const secret = await exportWalletSecret(account.vault, String(message.password ?? ''), type);
+      const current = await activeAccount();
+      if (pendingAuthorizationChanges || epoch !== operationEpoch || current?.id !== account.id ||
+          requireUnlocked().address.toLowerCase() !== account.address.toLowerCase()) {
+        throw new Error('钱包会话已变化，请重新验证密码');
+      }
+      return message.action === 'REVEAL_MNEMONIC' ? { phrase: secret } : { secret, type };
     }
     case 'GET_DAPP_UI_STATE': {
       const task = activeDappUi;
