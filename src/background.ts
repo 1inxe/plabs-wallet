@@ -2310,8 +2310,8 @@ const handleDappRequest = async (request: ProviderRequest, origin: string) => {
     await waitForDappUnlock(task);
     assertDappNotCancelled(origin);
     const result = await dispatchDappRequest(request, origin);
-    task.phase = 'success'; task.canCancel = false; task.approval = undefined;
-    task.message = request.method === 'plabs_sendPrivacyTransaction' ? '交易请求已处理，可在本地操作记录查看后续状态' : '请求已处理，结果已返回网站';
+    // Completed requests return directly to the wallet instead of a receipt page.
+    if (activeDappUi === task) activeDappUi = null;
     return result;
   } catch (cause) {
     task.phase = 'error'; task.canCancel = false; task.approval = undefined;

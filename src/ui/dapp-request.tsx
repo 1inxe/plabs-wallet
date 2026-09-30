@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Check, Globe, Lock, RefreshCw, ShieldCheck, X } from 'lucide-react';
+import { Globe, Lock, RefreshCw, ShieldCheck, X } from 'lucide-react';
 import { callWallet } from '../shared/runtime';
 import type { DappUiState } from '../shared/types';
 import { walletErrorMessage } from '../shared/errors';
@@ -17,7 +17,7 @@ export function useDappRequest() {
     const fetch = async () => {
       do {
         queued.current = false;
-        try { const next = await callWallet<DappUiState | null>('GET_DAPP_UI_STATE'); if (alive.current) setTask(next); }
+        try { const next = await callWallet<DappUiState | null>('GET_DAPP_UI_STATE'); if (alive.current) setTask(next?.phase === 'success' ? null : next); }
         catch { /* Keep the last state during transient service-worker wakeups. */ }
         finally { if (alive.current) setLoading(false); }
       } while (queued.current && alive.current);
@@ -41,7 +41,7 @@ export function DappRequestView({ task, refresh, onSetupPrivacy }: { task: DappU
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const terminal = task.phase === 'success' || task.phase === 'error';
+  const terminal = task.phase === 'error';
   const needsPrivacy = !terminal && task.requiresPrivacy && task.privacyUnlocked === false;
   const action = async (work: () => Promise<unknown>) => {
     if (busy) return; setBusy(true); setError('');
@@ -53,11 +53,11 @@ export function DappRequestView({ task, refresh, onSetupPrivacy }: { task: DappU
     event.preventDefault(); if (!password) return;
     await action(async () => { await callWallet('UNLOCK_PRIVACY', { password }); setPassword(''); await callWallet('RESUME_DAPP_REQUEST', { id: task.id }); });
   };
-  const title = terminal ? task.phase === 'success' ? '请求已处理' : '请求未完成' : needsPrivacy ? '先解锁隐私账户' : task.approval?.title ?? '正在处理网站请求';
+  const title = terminal ? '请求未完成' : needsPrivacy ? '先解锁隐私账户' : task.approval?.title ?? '正在处理网站请求';
   const confirmLabel = task.approval?.kind === 'personal_sign' ? '确认签名' : task.approval?.title.includes('不广播') ? '确认预览' : task.approval?.title.includes('第 1/2') ? '生成证明并继续' : '确认';
   return <div className="wallet-shell dapp-request-page"><PageHeader title={title} subtitle="在 PLabs 插件内安全处理" /><main className="page-body dapp-request-body">
     <div className="dapp-origin"><Globe size={17} /><span>{task.origin}</span></div>
-    {terminal ? <><div className="intro compact-intro"><span className="hero-symbol">{task.phase === 'success' ? <Check size={28} /> : <X size={28} />}</span><p>{task.error ?? task.message}</p></div><Button variant="primary" disabled={busy} onClick={() => action(() => callWallet('DISMISS_DAPP_REQUEST', { id: task.id }))}>返回钱包</Button></> : needsPrivacy ? <>
+    {terminal ? <><div className="intro compact-intro"><span className="hero-symbol"><X size={28} /></span><p>{task.error ?? task.message}</p></div><Button variant="primary" disabled={busy} onClick={() => action(() => callWallet('DISMISS_DAPP_REQUEST', { id: task.id }))}>返回钱包</Button></> : needsPrivacy ? <>
       <div className="panel form-stack"><h2><ShieldCheck size={18} className="text-mint" />独立隐私账户</h2><p className="micro text-muted">{task.privacyExists ? '主钱包已解锁。请输入独立隐私密码，成功后自动继续原来的请求；解锁不会自动授权交易。' : '此 EVM 账户尚未绑定隐私账户。请先创建或导入，完成后继续原请求。'}</p></div>
       {task.privacyExists ? <form className="form-stack" onSubmit={unlock}><Field label="独立隐私密码"><PasswordInput value={password} onChange={setPassword} placeholder="输入独立隐私密码" autoFocus /></Field><Button variant="primary" type="submit" disabled={busy || !password}><Lock size={16} />{busy ? '正在解锁…' : '解锁并继续'}</Button></form> : <Button variant="primary" onClick={onSetupPrivacy}>创建 / 导入隐私账户</Button>}
       {task.canCancel && <Button disabled={busy} onClick={() => action(() => callWallet('CANCEL_DAPP_REQUEST', { id: task.id }))}>取消请求</Button>}
