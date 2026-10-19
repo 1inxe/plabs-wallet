@@ -28,6 +28,9 @@ import { DexEngine, reservedInputs, type DexPorts } from './dex/engine';
 import { journalId, openJournal as openDexJournal, sealJournal as sealDexJournal } from './dex/journal';
 import { collectPayouts } from './dex/recovery';
 import { DEX, dexIndexer, hex as dexHex, object as dexObject, raw as dexRaw, reverse as dexReverse, serialize as dexSerialize, type JsonRecord } from './dex/protocol';
+import { JubjubEngine, type Ports as JubjubPorts } from './jubjub/engine';
+import { journalId as jubjubJournalId, open as openJubjubJournal, seal as sealJubjubJournal, reservedInputs as jubjubReservedInputs } from './jubjub/journal';
+import { api as jubjubApi, JUBJUB, object as jubjubObject, wire as jubjubWire } from './jubjub/protocol';
 
 const prover = new Worker(chrome.runtime.getURL('privacy-prover.js'), { type: 'module' });
 const dexProver = new Worker(chrome.runtime.getURL('dex-prover.js'), { type: 'module' });
@@ -189,6 +192,57 @@ const dexContext = (binding?: unknown) => {
   };
   return { engine: new DexEngine(p), ports: p };
 };
+const jubjubContext = (token = '', binding?: unknown) => {
+  const active = session;
+  if (!active) throw new Error('隐私账户未解锁');
+  const guard = async () => {
+    if (session !== active) throw new Error('隐私会话已变化，JubJub 请求已停止');
+    if (binding) {
+      const response = await chrome.runtime.sendMessage({ action: 'GET_JUBJUB_CONTEXT_VALID', binding });
+      if (!response?.ok) throw new Error(response?.error?.message ?? 'JubJub 钱包会话已变化');
+    }
+    if (session !== active) throw new Error('隐私会话已变化，JubJub 请求已停止');
+  };
+  const id = jubjubJournalId(active.privacyAddress);
+  const p: JubjubPorts = {
+    guard,
+    load: async () => {
+      await guard();
+      const response = await chrome.runtime.sendMessage({ action: 'GET_JUBJUB_JOURNAL', privacyAddress: active.privacyAddress });
+      if (!response?.ok) throw new Error(response?.error?.message ?? 'JubJub 恢复记录读取失败');
+      const journal = await openJubjubJournal(response.result, id, active.stateKey);
+      await guard(); return journal;
+    },
+    save: async journal => {
+      await guard();
+      const box = await sealJubjubJournal(journal, id, active.stateKey);
+      await guard();
+      const response = await chrome.runtime.sendMessage({ action: 'SAVE_JUBJUB_JOURNAL', privacyAddress: active.privacyAddress, box });
+      if (!response?.ok) throw new Error(response?.error?.message ?? 'JubJub 恢复记录保存失败');
+      await guard();
+    },
+    api: async (path, body) => { await guard(); const result = await jubjubApi(path, path === '/config' ? undefined : token, body); await guard(); return result; },
+    prove: async (method, body) => { await guard(); const result = jubjubObject(jubjubWire(await callWorker(dexProver, dexPending, { method, body }))); await guard(); return result; },
+    notes: async () => { await guard(); const notes = (await loadPoolState(143, JUBJUB.pool)).notes; await guard(); return notes; },
+    paths: async notes => { await guard(); const paths = await verifiedSpendInputs({ chainId: 143, poolAddress: JUBJUB.pool, notes }); await guard(); return paths; },
+    view: async (method, args = []) => { await guard(); const result = (await viewCall(NETWORKS[143].rpcUrls, JUBJUB.pool, method, args))[0]; await guard(); return result; },
+    rpc: async (method, args) => {
+      await guard();
+      if (!['eth_chainId', 'eth_getBlockByNumber', 'eth_getTransactionReceipt', 'eth_blockNumber'].includes(method)) throw new Error('JubJub RPC 方法不允许');
+      const result = await rpc(NETWORKS[143].rpcUrls, method, args); await guard(); return result;
+    },
+    frozen: async () => {
+      await guard(); const result = await fetchJson(`${JUBJUB.indexer}/frozen_leaves?pool=${JUBJUB.pool}`);
+      await guard(); if (!Array.isArray(result.leaves)) throw new Error('JubJub 冻结状态不可用'); return result.leaves;
+    },
+  };
+  return { engine: new JubjubEngine(p), ports: p };
+};
+const allReservedInputs = async (pool: string) => {
+  const reserved = reservedInputs(await dexContext().ports.load(), pool.toLowerCase());
+  if (pool.toLowerCase() === JUBJUB.pool) for (const cmx of jubjubReservedInputs(await jubjubContext().ports.load())) reserved.add(cmx);
+  return reserved;
+};
 const statuses = new Map<string, {
   status: 'syncing' | 'ready' | 'error';
   progress: number;
@@ -202,7 +256,7 @@ const statuses = new Map<string, {
 const publicState = async (state: PrivacyPoolState) => {
   const { notes, ...snapshot } = state;
   if (state.chainId === 143) {
-    const reserved = reservedInputs(await dexContext().ports.load(), state.poolAddress.toLowerCase());
+    const reserved = await allReservedInputs(state.poolAddress);
     const held = notes.filter(note => note.confirmed && !note.spent && reserved.has(normalizeHex(note.cmxHex)));
     snapshot.spendableBalanceRaw = (BigInt(snapshot.spendableBalanceRaw) - held.reduce((sum, note) => sum + BigInt(note.valueSats), 0n)).toString();
     snapshot.spendableNotes -= held.length;
@@ -333,7 +387,7 @@ const loadPoolState = async (chainId: ChainId, poolAddress: string) => {
     await savePrivacyPoolState(state, session.stateKey);
   }
   if (chainId === 143) {
-    const reserved = reservedInputs(await dexContext().ports.load(), poolAddress.toLowerCase());
+    const reserved = await allReservedInputs(poolAddress);
     state.notes = state.notes.filter(note => !reserved.has(normalizeHex(note.cmxHex)));
   }
   return state;
@@ -1209,6 +1263,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       return proof;
     }
     if (message.action === 'PRIVACY_PROVER_HEALTH') return callProver('init', {});
+    if (message.action === 'PRIVACY_JUBJUB_FUND') {
+      const active = session;
+      const work = async () => {
+        if (!active || session !== active) throw new Error('隐私会话已变化');
+        const { engine } = jubjubContext(message.token, message.binding);
+        return engine.fund(message.origin, message.intent, message.profile, message.seedHex, active.keys.raw_address_hex);
+      };
+      // Share the DEX mutation queue so funding proofs cannot reserve the same note concurrently.
+      const result = dexQueue.then(work, work); dexQueue = result.catch(() => {}); return result;
+    }
     if (message.action === 'PRIVACY_SYNC_POOL') return syncPool(message.chainId, message.poolAddress, message.rescan === true);
     if (message.action === 'PRIVACY_PREPARE_OPERATION') return preparePrivacyOperation(message.input);
     if (message.action === 'PRIVACY_LIST_NOTES') return listNotes(message);

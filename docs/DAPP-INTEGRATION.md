@@ -105,6 +105,26 @@ const result = await wallet.privacy.sendTransaction({
 
 Call `plabs_provePrivacyOwnership` with `[{ message, privacyAddress }]` for a separate approval. `message` must be non-empty and at most 8192 characters; `privacyAddress` must match the unlocked privacy account. The result contains only `{ version: 'bjj-schnorr-v1', r_x_hex, r_y_hex, s_hex }`. Keys remain in the extension. Rejection, cancellation, permission changes and wallet/session changes prevent proof disclosure.
 
+### JubJub P20 auction
+
+`plabs_getCapabilities` advertises `methods.jubjubBidding`. After authenticating with the official `/nft-jubjub/v1` campaign and preparing a bid, call:
+
+```ts
+await provider.request({
+  method: 'plabs_fundJubjubBid',
+  params: [{ intentId, token }],
+});
+// { intentId, state: 'pending' | 'confirmed' | 'failed', jobId?, txHash?, message? }
+```
+
+`token` is the temporary campaign session token, used only to preview the requested bid. Wallet approval shows the exact increase, total bid and official custody recipient. The wallet then authenticates independently with its current EVM and privacy accounts and checks that the prepared intent matches the approved values. The website cannot supply a recipient, proof or transaction data.
+
+Funding requires Monad, unlocked privacy assets, experimental privacy writes enabled, and one confirmed P20 note covering the increase. The wallet creates the campaign memo and proof locally, encrypts recovery material before submission, and submits directly to the fixed official campaign sponsor. Keys and note openings are never returned to the website. Gas is sponsored for the supported custody profile.
+
+For a pending or interrupted result, repeat the same `intentId` with a fresh campaign token. The exact saved proof is reused; an existing server job is queried without another payment. `confirmed` requires the campaign to accept the intent and 12 canonical chain confirmations. Older pending records are reconciled before a subsequent increase. Reserved inputs are excluded from ordinary transfers, DEX orders and note merging. Recovery material is retained if a transaction or campaign check fails.
+
+Run `node --test tests/jubjub.test.mjs` for synthetic protocol, approval, recovery and receipt checks. These tests do not sign with a real wallet or submit mainnet transactions.
+
 PLabs Network uses this proof for `/privasea/whitelist/qualification/challenge` and `/privasea/whitelist/qualification/check`, following EVM `/auth/challenge` and `/auth/login`. These operations do not broadcast transactions.
 
 Run `node --experimental-transform-types --test tests/privacy-ownership.test.mjs` to test the approval boundary and the bundled WASM with synthetic keys.
