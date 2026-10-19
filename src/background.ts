@@ -1,8 +1,9 @@
 import { consentStorageKey, consentStoragePrefix, sealConsent, openConsent } from './dapp-api/read-consent-store';
 import { parseIntent as parseDexIntent, amounts as dexAmounts } from './privacy/dex/protocol';
 import { journalId as dexJournalId } from './privacy/dex/journal';
-import { journalId as jubjubJournalId } from './privacy/jubjub/journal';
-import { api as jubjubApi, campaignIntent, object as jubjubObject, parseRequest as parseJubjubRequest, sameIntent as sameJubjubIntent, validateProfile as validateJubjubProfile, type BidResult as JubjubBidResult } from './privacy/jubjub/protocol';
+import { journalId as sponsoredJournalId } from './privacy/sponsored/journal';
+import { api as legacyCampaignApi, legacyRequest, parseRequest as parseLegacyCampaignRequest, validateProfile as validateLegacyProfile } from './privacy/jubjub/protocol';
+import { api as sponsorApi, parseRequest as parseSponsoredRequest, validateProfile as validateSponsorProfile, campaignIntent, verifyPayment, sameIntent as sameSponsoredIntent, publicRequest as publicSponsorRequest, object as sponsorObject, type Request as SponsorRequest, type TransferResult } from './privacy/sponsored/protocol';
 import type { DexOrderSummary } from 'plabs-js-sdk';
 import { createWalletWindow } from './shared/wallet-window';
 import { parseDexReferences, fetchDexOrders, type DexReference } from './dapp-api/dex-orders';
@@ -2227,12 +2228,11 @@ const sendDappPrivacyTransaction = async (origin: string, input: unknown) => {
   } finally { preparedOperations.delete(review.id); }
 };
 type DexBinding = { origin:string; address:string; epoch:number; privacy:string; revision:number };
-const fundJubjubBid = (origin: string, input: unknown) => queueTransaction(async () => {
-  const request = parseJubjubRequest(input);
+const sendSponsoredPrivacyTransaction = (origin: string, input: unknown, legacy = false) => queueTransaction(async () => {
   await requireApprovedOrigin(origin);
   const wallet = requireUnlocked();
   await requirePrivacyUnlocked();
-  if (await selectedChainId() !== 143) throw new RpcError(4901, 'JubJub 出价需要 Monad 网络');
+  if (await selectedChainId() !== 143) throw new RpcError(4901, '赞助隐私支付目前支持 Monad 网络');
   if (!(await transactionSettings()).experimentalPrivacyWrites) throw new RpcError(4200, '请先在钱包设置中开启实验性隐私操作');
   const privacy = await privacyAccountState();
   const account = await privacyAccountFor(wallet.address);
@@ -2244,44 +2244,62 @@ const fundJubjubBid = (origin: string, input: unknown) => queueTransaction(async
     if (pendingAuthorizationChanges || operationEpoch !== binding.revision) throw new RpcError(4100, '钱包会话已变化');
     await checkDappContext(origin, wallet.address, 143, binding.epoch, binding.privacy);
   };
-  const profile = validateJubjubProfile(await jubjubApi('/config'));
-  const preview = campaignIntent(await jubjubApi('/me', request.token), request.intentId, profile);
+  let request: SponsorRequest;
+  if (legacy) {
+    const old = parseLegacyCampaignRequest(input);
+    const oldProfile = validateLegacyProfile(await legacyCampaignApi('/config'));
+    await check();
+    const oldIntent = campaignIntent(await legacyCampaignApi('/me', old.token), old.intentId, oldProfile);
+    request = legacyRequest(oldProfile, oldIntent, old.token);
+  } else request = parseSponsoredRequest(input);
   await check();
-  const approved = await requestApproval({ origin, kind: 'transaction', title: 'JubJub P20 出价 / 恢复', details: {
-    活动: profile.campaignId,
-    网络: 'Monad · P20',
-    本次加注: `${formatUnits(preview.delta, 6)} P20`,
-    累计报价: `${formatUnits(preview.total, 6)} P20`,
-    收款方: `PLabs 官方拍卖托管账户 · ${profile.recipient}`,
-    结算: '按中标者自身报价付款；退款按官方拍卖最终结果处理。Gas 由活动赞助，协议费用为 0。',
-    授权内容: '使用当前钱包签署活动登录与隐私所有权证明，生成并提交指定出价。已有提交只恢复原记录，不重复加注。',
-    出价标识: preview.id,
+  const api = (path: string, token?: string, body?: unknown) => sponsorApi(request.apiBase, path, token, body);
+  const profile = validateSponsorProfile(await api('/config'), request);
+  await check();
+  const preview = campaignIntent(await api('/me', request.token), request.intentId, profile);
+  verifyPayment(request, preview, profile);
+  await check();
+  const approved = await requestApproval({ origin, kind: 'transaction', title: '赞助隐私支付 / 恢复', details: {
+    用途: `${profile.title} · ${profile.campaignId}`,
+    服务: request.apiBase,
+    网络与资产: `Monad · ${profile.symbol} · ${profile.pool}`,
+    本次支付: `${formatUnits(preview.delta, profile.decimals)} ${profile.symbol}`,
+    活动累计金额: `${formatUnits(preview.total, profile.decimals)} ${profile.symbol}`,
+    隐私收款方: profile.recipient,
+    费用: 'Gas 由活动赞助，支付协议费用为 0。活动结算与退款按服务方规则处理。',
+    授权内容: '使用当前钱包签署此服务的登录与隐私所有权证明，生成并提交上述付款。已有付款仅恢复原记录。',
+    公开备注前缀: request.payment.memoPrefixHex,
+    支付意图: preview.id,
   } });
-  if (!approved) throw new RpcError(4001, '用户拒绝 JubJub 出价');
+  if (!approved) throw new RpcError(4001, '用户拒绝赞助支付');
   await check();
-  // A website-supplied bearer token is only a preview. Authenticate independently so a
-  // malicious origin cannot credit our transfer to somebody else's auction position.
-  const challenge = jubjubObject(await jubjubApi('/auth/challenge', undefined, { evm: wallet.address.toLowerCase(), raw: rawAddress }));
-  if (typeof challenge.id !== 'string' || !challenge.id || challenge.id.length > 256 || typeof challenge.message !== 'string' || !challenge.message.trim() || challenge.message.length > 8192) throw new Error('JubJub 登录挑战无效');
+  // The page's token is only a preview. Create an independent current-wallet
+  // session before proving, so a foreign token cannot assign our money to someone else.
+  const challenge = sponsorObject(await api('/auth/challenge', undefined, { evm: wallet.address.toLowerCase(), raw: rawAddress }));
+  if (typeof challenge.id !== 'string' || !challenge.id || challenge.id.length > 256 || typeof challenge.message !== 'string' || !challenge.message.trim() || challenge.message.length > 8192) throw new Error('活动登录挑战无效');
   await check();
   const signature = await wallet.signMessage(challenge.message);
   await check();
   const proof = await callPrivacyEngine('PRIVACY_PROVE_OWNERSHIP', { rawAddress, message: challenge.message });
   await check();
-  const authentication = jubjubObject(await jubjubApi('/auth/session', undefined, { id: challenge.id, signature, proof }));
-  if (typeof authentication.token !== 'string' || !authentication.token || authentication.token.length > 8192 || /[\r\n]/.test(authentication.token) || !Number.isFinite(authentication.expires) || Number(authentication.expires) <= Date.now() / 1000) throw new Error('JubJub 登录凭证无效');
-  const ownIntent = campaignIntent(await jubjubApi('/me', authentication.token), request.intentId, profile);
-  if (!sameJubjubIntent(preview, ownIntent)) throw new Error('当前钱包出价与已批准内容不符，请重新连接活动');
+  const authentication = sponsorObject(await api('/auth/session', undefined, { id: challenge.id, signature, proof }));
+  if (typeof authentication.token !== 'string' || !authentication.token || authentication.token.length > 16384 || /\s/.test(authentication.token) || !Number.isFinite(authentication.expires) || Number(authentication.expires) <= Date.now() / 1000) throw new Error('活动登录凭证无效');
+  await check();
+  const ownIntent = campaignIntent(await api('/me', authentication.token), request.intentId, profile);
+  verifyPayment(request, ownIntent, profile);
+  if (!sameSponsoredIntent(preview, ownIntent)) throw new Error('当前钱包支付意图与已批准内容不符，请重新连接活动');
   await check();
   if (await privacyMerges.activeFor(wallet.address, 143)) throw new Error('请先完成或停止当前 Notes 合并');
-  if (activeDappUi?.origin === origin) activeDappUi.message = '正在同步 P20 并准备 JubJub 出价；恢复材料仅保存在钱包…';
+  if (activeDappUi?.origin === origin) activeDappUi.message = `正在同步 ${profile.symbol} 并准备赞助支付；恢复材料仅保存在钱包…`;
   await syncForMerge(143);
   await check();
-  const result = await callPrivacyEngine<JubjubBidResult>('PRIVACY_JUBJUB_FUND', { origin, binding, token: authentication.token, intent: ownIntent, profile, seedHex: privacySessionSecret!.seedHex });
+  const result = await callPrivacyEngine<TransferResult>('PRIVACY_SPONSORED_FUND', { origin, binding, token: authentication.token, request: publicSponsorRequest(request), intent: ownIntent, profile, seedHex: privacySessionSecret!.seedHex });
   await check();
   if (result.state === 'confirmed') await syncForMerge(143).catch(() => {});
   return result;
 });
+// Existing callers normalize into the same engine and encrypted journal.
+const fundJubjubBid = (origin: string, input: unknown) => sendSponsoredPrivacyTransaction(origin, input, true);
 const dexRequest = (origin:string, method:string, input:unknown) => queueTransaction(async()=>{
   await requireApprovedOrigin(origin); const wallet=requireUnlocked(); await requirePrivacyUnlocked();
   if(await selectedChainId()!==143)throw new RpcError(4901,'请先切换 Monad');
@@ -2347,7 +2365,7 @@ const authorizeOperation = async (operation: PreparedOperation) => {
 };
 let lastDappWalletOpen = 0;
 const interactiveDapps = new Set<string>();
-const INTERACTIVE_DAPP_METHODS = new Set(['plabs_connect', 'eth_requestAccounts', 'wallet_requestPermissions', 'personal_sign', 'wallet_switchEthereumChain', 'plabs_previewTransaction', 'plabs_getPrivacyAddress', 'plabs_provePrivacyOwnership', 'plabs_sendPrivacyTransaction', 'plabs_requestPrivacyAccess', 'plabs_importOfficialDexOrders', 'plabs_placeDexOrder', 'plabs_resumeDexOrder', 'plabs_cancelDexOrder', 'plabs_collectDexPayouts', 'plabs_fundJubjubBid']);
+const INTERACTIVE_DAPP_METHODS = new Set(['plabs_connect', 'eth_requestAccounts', 'wallet_requestPermissions', 'personal_sign', 'wallet_switchEthereumChain', 'plabs_previewTransaction', 'plabs_getPrivacyAddress', 'plabs_provePrivacyOwnership', 'plabs_sendPrivacyTransaction', 'plabs_requestPrivacyAccess', 'plabs_importOfficialDexOrders', 'plabs_placeDexOrder', 'plabs_resumeDexOrder', 'plabs_cancelDexOrder', 'plabs_collectDexPayouts', 'plabs_fundJubjubBid', 'plabs_sendSponsoredPrivacyTransaction']);
 const handleDappRequest = async (request: ProviderRequest, origin: string) => {
   if (request.method === 'plabs_connect' || request.method === 'plabs_requestPrivacyAccess') {
     const scopes = readScopes(Array.isArray(request.params) ? request.params[0] : undefined);
@@ -2360,7 +2378,7 @@ const handleDappRequest = async (request: ProviderRequest, origin: string) => {
   if (!interactive) return dispatchDappRequest(request, origin);
   if (interactiveDapps.size || isDappUiRunning(activeDappUi)) throw new RpcError(-32002, '钱包中已有待处理请求，请先处理或取消');
   interactiveDapps.add(origin);
-  const task: ActiveDappUi = { id: crypto.randomUUID(), origin, method: request.method, phase: 'unlock-wallet', requiresPrivacy: ['plabs_connect', 'plabs_getPrivacyAddress', 'plabs_provePrivacyOwnership', 'plabs_sendPrivacyTransaction', 'plabs_requestPrivacyAccess', 'plabs_importOfficialDexOrders', 'plabs_placeDexOrder', 'plabs_resumeDexOrder', 'plabs_cancelDexOrder', 'plabs_collectDexPayouts', 'plabs_fundJubjubBid'].includes(request.method), canCancel: true, cancelled: false, createdAt: Date.now() };
+  const task: ActiveDappUi = { id: crypto.randomUUID(), origin, method: request.method, phase: 'unlock-wallet', requiresPrivacy: ['plabs_connect', 'plabs_getPrivacyAddress', 'plabs_provePrivacyOwnership', 'plabs_sendPrivacyTransaction', 'plabs_requestPrivacyAccess', 'plabs_importOfficialDexOrders', 'plabs_placeDexOrder', 'plabs_resumeDexOrder', 'plabs_cancelDexOrder', 'plabs_collectDexPayouts', 'plabs_fundJubjubBid', 'plabs_sendSponsoredPrivacyTransaction'].includes(request.method), canCancel: true, cancelled: false, createdAt: Date.now() };
   activeDappUi = task;
   try {
     if (!await openWalletPopup()) throw new RpcError(4900,'无法打开钱包确认窗口。请点击浏览器工具栏的 PLabs Wallet 图标，再重试请求。');
@@ -2410,7 +2428,7 @@ const dispatchDappRequest = async (request: ProviderRequest, origin: string) => 
       return { opened: await openWalletPopup() };
     }
     case 'plabs_getCapabilities':
-      return { version: 1, methods: { personalSign: true, signTypedData: false, evmTransactions: false, evmPreview: true, privacyTransactions: true, privacyRead: true, privacyHistory: true, privacyNotes: true, dexOrders: true, dexTrading: true, unifiedConnect: true, privacyOwnership: true, jubjubBidding: true }, networks: Object.values(NETWORKS).map(network => ({ chainId: network.chainId, name: network.name, nativeSymbol: network.nativeSymbol, pools: (network.plabs?.pools ?? []).map(pool => ({ address: pool.address, symbol: pool.symbol, decimals:pool.decimals, underlying:pool.underlying, canShield: Boolean(pool.underlying && !pool.nativeGateway), canUnshield: network.chainId === 143 && pool.symbol === 'sUSDC' })) })) };
+      return { version: 1, methods: { personalSign: true, signTypedData: false, evmTransactions: false, evmPreview: true, privacyTransactions: true, privacyRead: true, privacyHistory: true, privacyNotes: true, dexOrders: true, dexTrading: true, unifiedConnect: true, privacyOwnership: true, jubjubBidding: true, sponsoredPrivacyTransfers: true }, networks: Object.values(NETWORKS).map(network => ({ chainId: network.chainId, name: network.name, nativeSymbol: network.nativeSymbol, pools: (network.plabs?.pools ?? []).map(pool => ({ address: pool.address, symbol: pool.symbol, decimals:pool.decimals, underlying:pool.underlying, canShield: Boolean(pool.underlying && !pool.nativeGateway), canUnshield: network.chainId === 143 && pool.symbol === 'sUSDC' })) })) };
     case 'plabs_requestPrivacyAccess':
       return privacyAccess.request(origin, params[0]);
     case 'plabs_getPrivacySession': {
@@ -2427,6 +2445,7 @@ const dispatchDappRequest = async (request: ProviderRequest, origin: string) => 
     }
     case 'plabs_getDexOrders': return dappDexOrders(origin);
     case 'plabs_fundJubjubBid': return fundJubjubBid(origin, params[0]);
+    case 'plabs_sendSponsoredPrivacyTransaction': return sendSponsoredPrivacyTransaction(origin, params[0]);
     case 'plabs_placeDexOrder': case 'plabs_resumeDexOrder': case 'plabs_cancelDexOrder': case 'plabs_collectDexPayouts': return dexRequest(origin,request.method,params[0]);
     case 'plabs_importOfficialDexOrders': return importOfficialDexOrders(origin);
     case 'plabs_getBalances': return dappPortfolio(origin);
@@ -2483,17 +2502,17 @@ const dispatchRuntimeMessage = async (message: Record<string, unknown>, sender: 
   const pageUrl = sender.url ? new URL(sender.url) : null;
   const isExtensionPage = sender.id === chrome.runtime.id && pageUrl?.protocol === 'chrome-extension:' && pageUrl.host === chrome.runtime.id &&
     ['/popup.html', '/approval.html'].includes(pageUrl.pathname);
-  if (['GET_DEX_JOURNAL', 'SAVE_DEX_JOURNAL', 'GET_JUBJUB_JOURNAL', 'SAVE_JUBJUB_JOURNAL'].includes(String(message.action)) && sender.id === chrome.runtime.id && pageUrl?.protocol === 'chrome-extension:' && pageUrl.host === chrome.runtime.id && pageUrl.pathname === '/offscreen.html') {
+  if (['GET_DEX_JOURNAL', 'SAVE_DEX_JOURNAL', 'GET_JUBJUB_JOURNAL', 'SAVE_JUBJUB_JOURNAL', 'GET_SPONSORED_JOURNAL', 'SAVE_SPONSORED_JOURNAL'].includes(String(message.action)) && sender.id === chrome.runtime.id && pageUrl?.protocol === 'chrome-extension:' && pageUrl.host === chrome.runtime.id && pageUrl.pathname === '/offscreen.html') {
     await requirePrivacyUnlocked();
     const account = await privacyAccountFor(requireUnlocked().address);
     if (!account || `0x${account.rawAddressHex.replace(/^0x/i, '').toLowerCase()}` !== message.privacyAddress) throw new Error('PEX 恢复记录不属于当前隐私账户');
-    const id = String(message.action).includes('JUBJUB') ? jubjubJournalId(String(message.privacyAddress)) : dexJournalId(String(message.privacyAddress));
-    if (message.action === 'GET_DEX_JOURNAL' || message.action === 'GET_JUBJUB_JOURNAL') return (await localGet(id)) ?? null;
+    const id = String(message.action).includes('DEX') ? dexJournalId(String(message.privacyAddress)) : sponsoredJournalId(String(message.privacyAddress));
+    if (message.action === 'GET_DEX_JOURNAL' || message.action === 'GET_JUBJUB_JOURNAL' || message.action === 'GET_SPONSORED_JOURNAL') return (await localGet(id)) ?? null;
     const box = message.box as { schema: number; nonce: string; ciphertext: string };
     if (!box || box.schema !== 1 || typeof box.nonce !== 'string' || box.nonce.length !== 16 || typeof box.ciphertext !== 'string' || box.ciphertext.length > 8_000_000) throw new Error('PEX 加密记录无效或过大');
     await localSet({ [id]: box }); return true;
   }
-  if(['GET_DEX_CONTEXT_VALID', 'GET_JUBJUB_CONTEXT_VALID'].includes(String(message.action)) && sender.id===chrome.runtime.id && pageUrl?.host===chrome.runtime.id && pageUrl.pathname==='/offscreen.html'){
+  if(['GET_DEX_CONTEXT_VALID', 'GET_JUBJUB_CONTEXT_VALID', 'GET_SPONSORED_CONTEXT_VALID'].includes(String(message.action)) && sender.id===chrome.runtime.id && pageUrl?.host===chrome.runtime.id && pageUrl.pathname==='/offscreen.html'){
     const binding=message.binding as DexBinding;
     if(!binding||pendingAuthorizationChanges||operationEpoch!==binding.revision)throw new Error('PEX 会话已变化');
     await checkDappContext(binding.origin,binding.address,143,binding.epoch,binding.privacy);return true;

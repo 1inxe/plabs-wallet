@@ -128,3 +128,8 @@ Run `node --test tests/jubjub.test.mjs` for synthetic protocol, approval, recove
 PLabs Network uses this proof for `/privasea/whitelist/qualification/challenge` and `/privasea/whitelist/qualification/check`, following EVM `/auth/challenge` and `/auth/login`. These operations do not broadcast transactions.
 
 Run `node --experimental-transform-types --test tests/privacy-ownership.test.mjs` to test the approval boundary and the bundled WASM with synthetic keys.
+
+
+## Sponsored private transfers
+
+Use the protocol-level `plabs_sendSponsoredPrivacyTransaction` capability for custody services that implement `plabs-custody-v1`. See [the sponsored-transfer contract](./SPONSORED-PRIVACY-TRANSFERS.md) for approved scopes, independent wallet authentication, amount/memo binding, and recovery. The original JubJub RPC remains a compatibility adapter over the same engine and journal.

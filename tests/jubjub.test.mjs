@@ -18,6 +18,10 @@ registerHooks({
     return next(url, context);
   },
 });
+const { SponsoredTransferEngine } = await import('../src/privacy/sponsored/engine.ts');
+const generic = await import('../src/privacy/sponsored/protocol.ts');
+const { recordRequest } = await import('../src/privacy/sponsored/journal.ts');
+const { legacyRequest } = await import('../src/privacy/jubjub/protocol.ts');
 const { JubjubEngine } = await import('../src/privacy/jubjub/engine.ts');
 const { JUBJUB, canonical, validateProfile, campaignIntent, fundingEnvelope, parseRequest, sameIntent, object, wire } = await import('../src/privacy/jubjub/protocol.ts');
 const { open, seal, journalId, reservedInputs } = await import('../src/privacy/jubjub/journal.ts');
@@ -31,14 +35,24 @@ function profile() {
 }
 const note = (cmx, amount, recipient) => ({ cmx_hex: cmx, value_sats: amount, recipient_raw_address_hex: recipient, rho_hex: scalar, psi_hex: '02'.repeat(32), rcm_hex: '03'.repeat(32) });
 const action = cmx => ({ cmx: `0x${cmx}`, enc_ciphertext: '0x0102', out_ciphertext: '0x0304', ephemeral_key: `0x${scalar}`, nullifier: `0x${scalar}`, proof_bn254: '0x0102', pub_fields_bn254: Array(8).fill(`0x${scalar}`) });
-function harness() {
-  const config = profile(), expected = validateProfile(config);
+function harness({ useGeneric = false, alternate = false, campaignId } = {}) {
+  const config = profile();
+  if (alternate) {
+    Object.assign(config.rules, { id: 'future-campaign-2027', title: 'Future campaign', paymentPool: '0xcb36e209ae44fafc75dc6820ae42d9400637f99e', market: '0xcb36e209ae44fafc75dc6820ae42d9400637f99e', reserveUnits: '2000000' });
+    Object.assign(config.rules.custody, { asset: 'sUSDC', bidStepUnits: '125000', recipientRaw: '56'.repeat(43), settlement: 'pay-as-bid' });
+    Object.assign(config, { apiBase: '/nft-future-campaign/v1', feeSymbol: 'sUSDC', collectorRaw: config.rules.custody.recipientRaw, rulesHash: keccak256(toUtf8Bytes(canonical(config.rules))) });
+  }
+  if (campaignId) { config.rules.id = campaignId; config.rulesHash = keccak256(toUtf8Bytes(canonical(config.rules))); }
   const intent = { id, status: 'prepared', total: '100000000', delta: '100000000', version: 0, psi: '0x10' };
+  if (alternate) Object.assign(intent, { total: '3125000', delta: '3125000' });
+  const request = generic.parseRequest({ protocol: generic.PROTOCOL, apiBase: `https://app.plabs.online${config.apiBase}`, campaignId: config.rules.id, rulesHash: config.rulesHash, intentId: id, token: 'synthetic-token', payment: { chainId: 143, poolAddress: config.rules.paymentPool, recipientRaw: config.rules.custody.recipientRaw, amountRaw: intent.delta, memoPrefixHex: alternate ? '0x46555455524501' : JUBJUB.memoPrefixHex } });
+  const publicRequest = generic.publicRequest(request);
+  const expected = useGeneric ? generic.validateProfile(config, request) : validateProfile(config);
   const me = { summary: { campaignId: config.rules.id, rulesHash: config.rulesHash, phase: 'bidding', bidPaused: false, serverTime: 1000 }, intents: [intent], jobs: [] };
   const approved = campaignIntent(me, id, expected);
   let journal = { schema: 1, records: [] };
-  const state = { prove: 0, funds: 0, paths: 0, authorized: true, head: 110n, accept: false, unknown: false, receiptBad: false, notes: [{ cmxHex: inputCmx, nullifierHex: scalar, valueSats: '150000000', confirmed: true, spent: false, ownedNote: {} }], afterProve: null };
-  const proof = { funding_notes: [note(targetCmx, 100000000, JUBJUB.recipient)], output_note: note(changeCmx, 50000000, rawPrivacy), bundle: { actions: [action(targetCmx), action(changeCmx)], binding_proof_bn254: Array(8).fill(`0x${scalar}`) } };
+  const state = { prove: 0, funds: 0, paths: 0, authorized: true, head: 110n, accept: false, unknown: false, receiptBad: false, notes: [{ cmxHex: inputCmx, nullifierHex: scalar, valueSats: alternate ? '5000000' : '150000000', confirmed: true, spent: false, ownedNote: {} }], afterProve: null };
+  const proof = { funding_notes: [note(targetCmx, Number(intent.delta), expected.recipient)], output_note: note(changeCmx, alternate ? 1875000 : 50000000, rawPrivacy), bundle: { actions: [action(targetCmx), action(changeCmx)], binding_proof_bn254: Array(8).fill(`0x${scalar}`) } };
   const ports = {
     guard: async () => { if (!state.authorized) throw new Error('context changed'); },
     load: async () => structuredClone(journal),
@@ -63,8 +77,8 @@ function harness() {
       state.prove++;
       assert.equal(method, 'prove_note');
       assert.equal(body.spend_notes.length, 1);
-      assert.equal(body.transfer_output.memo_hex, `0x5045524332302d4a55424a55422d5032302d763100${approved.psi}`);
-      assert.equal(body.transfer_output.recipient_raw_address_hex, JUBJUB.recipient);
+      assert.equal(body.transfer_output.memo_hex, `${request.payment.memoPrefixHex}${approved.psi}`);
+      assert.equal(body.transfer_output.recipient_raw_address_hex, expected.recipient);
       assert.equal(body.transfer_output.value_sats, Number(me.intents.at(-1).delta));
       state.afterProve?.();
       return structuredClone(proof);
@@ -77,12 +91,12 @@ function harness() {
       if (method === 'eth_chainId') return '0x8f';
       if (method === 'eth_getBlockByNumber') return { hash: args[0] === '0x0' ? JUBJUB.genesis : 'canonical' };
       if (method === 'eth_blockNumber') return `0x${state.head.toString(16)}`;
-      if (method === 'eth_getTransactionReceipt') return { status: '0x1', to: JUBJUB.pool, blockNumber: '0x64', blockHash: 'canonical', logs: (state.receiptBad ? [targetCmx] : [targetCmx, changeCmx]).map(cmx => ({ address: JUBJUB.pool, topics: [NOTE_ADDED_TOPIC, `0x${cmx}`] })) };
+      if (method === 'eth_getTransactionReceipt') return { status: '0x1', to: expected.pool, blockNumber: '0x64', blockHash: 'canonical', logs: (state.receiptBad ? [targetCmx] : [targetCmx, changeCmx]).map(cmx => ({ address: expected.pool, topics: [NOTE_ADDED_TOPIC, `0x${cmx}`] })) };
       throw new Error('unexpected RPC');
     },
   };
-  const engine = new JubjubEngine(ports);
-  return { config, expected, me, approved, proof, state, engine, ports, journal: () => journal, run: () => engine.fund('https://local.example', approved, expected, 'synthetic-seed', rawPrivacy) };
+  const engine = useGeneric ? new SponsoredTransferEngine(ports) : new JubjubEngine(ports);
+  return { config, expected, request, publicRequest, me, approved, proof, state, engine, ports, journal: () => journal, run: () => engine.fund('https://local.example', approved, expected, 'synthetic-seed', rawPrivacy, publicRequest) };
 }
 
 test('validates canonical official custody rules, request shape and precision', () => {
@@ -100,7 +114,7 @@ test('single-input memo proof is saved before sponsored funding and discloses on
   const h = harness(), result = await h.run();
   assert.equal(result.state, 'pending');
   assert.equal(h.state.prove, 1); assert.equal(h.state.funds, 1);
-  assert.ok(Object.keys(result).every(k => ['intentId', 'state', 'jobId', 'txHash', 'message'].includes(k)));
+  assert.ok(Object.keys(result).every(k => ['id', 'intentId', 'state', 'jobId', 'txHash', 'message'].includes(k)));
   assert.ok(!JSON.stringify(h.journal()).includes('synthetic-seed'));
   assert.deepEqual([...reservedInputs(h.journal())], [inputCmx]);
 });
@@ -192,13 +206,13 @@ test('journal is encrypted with privacy-address-bound authenticated data', async
 });
 
 const background = readFileSync(new URL('../src/background.ts', import.meta.url), 'utf8');
-const handlerSource = background.slice(background.indexOf('const fundJubjubBid ='), background.indexOf('const dexRequest ='));
+const handlerSource = background.slice(background.indexOf('const sendSponsoredPrivacyTransaction ='), background.indexOf('const dexRequest ='));
 const handlerCompiled = ts.transpileModule(handlerSource, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText;
-function approvalHarness() {
-  const h = harness();
+function approvalHarness({ alternate = false, legacy = false } = {}) {
+  const h = harness({ useGeneric: !legacy, alternate });
   const state = { allowed: true, changed: false, signatures: 0, proofs: 0, funding: 0, foreign: false, mismatch: false, afterSignature: false };
   const scope = {
-    parseJubjubRequest: parseRequest,
+    parseLegacyCampaignRequest: parseRequest, parseSponsoredRequest: generic.parseRequest, legacyRequest,
     queueTransaction: f => f(),
     requireApprovedOrigin: async () => {},
     requireUnlocked: () => ({ address: '0xevm', signMessage: async message => { assert.equal(message, 'official authentication challenge'); state.signatures++; if (state.afterSignature) state.changed = true; return 'synthetic-signature'; } }),
@@ -212,8 +226,9 @@ function approvalHarness() {
     permissionEpoch: new Map(), operationEpoch: 1, pendingAuthorizationChanges: false,
     assertDappNotCancelled: () => { if (state.changed) throw new Error('context changed'); },
     checkDappContext: async () => { if (state.changed) throw new Error('context changed'); },
-    validateJubjubProfile: validateProfile, campaignIntent, sameJubjubIntent: sameIntent, jubjubObject: object,
-    jubjubApi: async (path, token, body) => {
+    validateLegacyProfile: validateProfile, validateSponsorProfile: generic.validateProfile, campaignIntent, verifyPayment: generic.verifyPayment, sameSponsoredIntent: sameIntent, sponsorObject: object, publicSponsorRequest: generic.publicRequest,
+    sponsorApi: async (base, path, token, body) => {
+      assert.equal(base, h.request.apiBase);
       if (path === '/config') return h.config;
       if (path === '/me') {
         if (token === 'web-token') return h.me;
@@ -226,18 +241,19 @@ function approvalHarness() {
       if (path === '/auth/session') { assert.deepEqual(body, { id: 'auth-id', signature: 'synthetic-signature', proof: { version: 'bjj-schnorr-v1' } }); return { token: 'wallet-token', expires: Date.now() / 1000 + 600 }; }
       throw new Error(`unexpected ${path}`);
     },
-    requestApproval: async review => { assert.match(review.details.本次加注, /100000000/); return state.allowed; },
+    requestApproval: async review => { assert.match(review.details.本次支付, new RegExp(h.request.payment.amountRaw)); return state.allowed; },
     formatUnits: value => value,
     callPrivacyEngine: async (action, params) => {
       if (action === 'PRIVACY_PROVE_OWNERSHIP') { state.proofs++; assert.equal(params.rawAddress, rawPrivacy); return { version: 'bjj-schnorr-v1' }; }
-      assert.equal(action, 'PRIVACY_JUBJUB_FUND'); assert.equal(params.token, 'wallet-token'); state.funding++;
-      return { intentId: id, state: 'pending' };
+      assert.equal(action, 'PRIVACY_SPONSORED_FUND'); assert.deepEqual(params.request, h.publicRequest); assert.equal(params.token, 'wallet-token'); state.funding++;
+      return { id: 'opaque-local-id', intentId: id, state: 'pending' };
     },
     privacyMerges: { activeFor: async () => false }, activeDappUi: null, syncForMerge: async () => {},
     RpcError: class extends Error { constructor(code, message) { super(message); this.code = code; } },
   };
-  const run = new Function('scope', `with (scope) { ${handlerCompiled}; return fundJubjubBid; }`)(scope);
-  return { state, run: () => run('https://local.example', { intentId: id, token: 'web-token' }) };
+  const run = new Function('scope', `with (scope) { ${handlerCompiled}; return sendSponsoredPrivacyTransaction; }`)(scope);
+  scope.legacyCampaignApi = (path, token, body) => scope.sponsorApi(JUBJUB.api, path, token, body);
+  return { state, request: h.request, run: (request = { ...h.request, token: 'web-token' }) => run('https://local.example', legacy ? { intentId: id, token: 'web-token' } : request, legacy) };
 }
 test('wallet authenticates independently and sends only its own token to the fund engine', async () => {
   const h = approvalHarness(); assert.equal((await h.run()).state, 'pending');
@@ -249,4 +265,120 @@ test('approval denial, a foreign token, changed intent and context changes canno
     const h = approvalHarness(); h.state[mode] = true;
     await assert.rejects(h.run()); assert.equal(h.state.funding, 0);
   }
+});
+
+
+test('a second campaign uses its own API, receiver, memo and supported sUSDC asset without wallet changes', async () => {
+  const h = harness({ useGeneric: true, alternate: true });
+  const result = await h.run();
+  assert.equal(result.state, 'pending');
+  assert.match(result.id, /^[0-9a-f-]{36}$/);
+  assert.equal(h.expected.symbol, 'sUSDC');
+  assert.equal(h.journal().records[0].material.note.value, '3125000');
+  assert.equal(h.journal().records[0].material.note.address_raw_hex, '56'.repeat(43));
+  assert.equal(h.journal().records[0].request.apiBase, 'https://app.plabs.online/nft-future-campaign/v1');
+  assert.equal(h.journal().records[0].request.payment.memoPrefixHex, '0x46555455524501');
+  assert.equal(h.journal().records[0].requestDigest, generic.requestDigest(h.request));
+  assert.ok(!JSON.stringify(h.journal()).includes('synthetic-token'));
+  assert.ok(Object.keys(result).every(k => ['id', 'intentId', 'state', 'jobId', 'txHash', 'message'].includes(k)));
+});
+test('generic validation rejects unsafe sponsor scopes, amounts, metadata and unknown assets before any fetch', () => {
+  const h = harness({ useGeneric: true });
+  for (const base of ['http://app.plabs.online/nft-other/v1', 'https://evil.example/nft-other/v1', 'https://app.plabs.online:443/nft-other/v1', 'https://user@app.plabs.online/nft-other/v1', 'https://app.plabs.online/nft-other/v1?q=1', 'https://app.plabs.online/nft-other/v1#x', 'https://app.plabs.online/nft-a/../nft-other/v1', 'https://app.plabs.online/nft-%2e%2e/v1', 'https://app.plabs.online/nft-other--name/v1', 'https://app.plabs.online/nft-other/v1\n']) {
+    assert.throws(() => generic.parseRequest({ ...h.request, apiBase: base }), undefined, base);
+  }
+  for (const payment of [
+    { ...h.request.payment, chainId: 1 }, { ...h.request.payment, amountRaw: '0' },
+    { ...h.request.payment, amountRaw: '01' }, { ...h.request.payment, amountRaw: '1\n' },
+    { ...h.request.payment, amountRaw: '9007199254740992' },
+    { ...h.request.payment, poolAddress: `0x${'99'.repeat(20)}` },
+    { ...h.request.payment, memoPrefixHex: '0x' }, { ...h.request.payment, memoPrefixHex: '0x123' },
+    { ...h.request.payment, memoPrefixHex: `0x${'ff'.repeat(129)}` }, { ...h.request.payment, memoPrefixHex: '0xab\n' },
+    { ...h.request.payment, recipientRaw: `${rawPrivacy}\n` }, { ...h.request.payment, callback: 'evil()' },
+  ]) assert.throws(() => generic.parseRequest({ ...h.request, payment }));
+  for (const token of ['', 'token\n', 'token token', 'x'.repeat(16385)]) assert.throws(() => generic.parseRequest({ ...h.request, token }));
+  assert.throws(() => generic.parseRequest({ ...h.request, protocol: 'unreviewed-protocol' }));
+  assert.throws(() => generic.parseRequest({ ...h.request, bodyTemplate: { script: 'eval()' } }));
+});
+test('same scope cannot change amount, memo, rules or origin after a saved proof', async () => {
+  const h = harness({ useGeneric: true }); await h.run();
+  const engine = new SponsoredTransferEngine(h.ports);
+  const attempt = request => engine.fund('https://local.example', h.approved, h.expected, 'synthetic-seed', rawPrivacy, request);
+  await assert.rejects(attempt({ ...h.publicRequest, payment: { ...h.publicRequest.payment, memoPrefixHex: '0x55' } }), /memo/);
+  await assert.rejects(attempt({ ...h.publicRequest, payment: { ...h.publicRequest.payment, amountRaw: '100000001' } }), /金额/);
+  await assert.rejects(attempt({ ...h.publicRequest, rulesHash: `0x${'ff'.repeat(32)}` }), /配置/);
+  await assert.rejects(engine.fund('https://other.example', h.approved, h.expected, 'synthetic-seed', rawPrivacy, h.publicRequest), /来源/);
+  assert.equal(h.state.prove, 1); assert.equal(h.state.funds, 1);
+});
+test('pre-upgrade records without request metadata resume the exact old proof through the generic API', async () => {
+  const h = harness(), original = h.ports.api;
+  h.ports.api = async (path, body) => { if (path === '/bids/fund') { h.state.funds++; throw new Error('lost before broadcast'); } return original(path, body); };
+  await h.run();
+  const record = h.journal().records[0];
+  delete record.request; delete record.requestDigest; delete h.journal().requestIds;
+  const exactMaterial = JSON.stringify(record.material), exactEnvelope = JSON.stringify(record.envelope);
+  assert.equal(recordRequest(record).apiBase, JUBJUB.api);
+  h.ports.api = original;
+  const result = await new SponsoredTransferEngine(h.ports).fund('https://local.example', h.approved, h.expected, 'synthetic-seed', rawPrivacy, h.publicRequest);
+  assert.equal(result.state, 'pending');
+  assert.equal(h.state.prove, 1, 'An old proof must not be regenerated');
+  assert.equal(JSON.stringify(h.journal().records[0].material), exactMaterial);
+  assert.equal(JSON.stringify(h.journal().records[0].envelope), exactEnvelope);
+  assert.equal(h.journal().records.length, 1);
+  assert.equal(h.journal().records[0].requestDigest, generic.requestDigest(h.publicRequest));
+});
+test('legacy and generic RPC execution share stable request identity and never fund twice', async () => {
+  const h = harness(); const first = await h.run();
+  h.state.head = 111n; h.me.intents[0].status = 'funded';
+  const middle = await new SponsoredTransferEngine(h.ports).fund('https://local.example', h.approved, h.expected, 'synthetic-seed', rawPrivacy, h.publicRequest);
+  const last = await h.run();
+  assert.equal(first.id, middle.id); assert.equal(middle.id, last.id);
+  assert.equal(last.state, 'confirmed'); assert.equal(h.state.prove, 1); assert.equal(h.state.funds, 1);
+});
+test('two protocol scopes with identical campaign and intent identifiers stay isolated by API and pool', async () => {
+  const first = harness({ useGeneric: true }); await first.run();
+  const second = harness({ useGeneric: true, alternate: true, campaignId: first.expected.campaignId });
+  second.ports.load = first.ports.load; second.ports.save = first.ports.save;
+  const result = await second.run();
+  assert.equal(result.state, 'pending');
+  assert.equal(first.journal().records.length, 2);
+  assert.equal(first.journal().records[0].request.apiBase, JUBJUB.api);
+  assert.notEqual(first.journal().records[1].request.apiBase, JUBJUB.api);
+  assert.equal(first.state.prove, 1); assert.equal(second.state.prove, 1);
+  assert.equal(first.state.funds, 1); assert.equal(second.state.funds, 1);
+  assert.equal(reservedInputs(first.journal(), first.expected.pool).size, 1);
+  assert.equal(reservedInputs(first.journal(), second.expected.pool).size, 1);
+});
+test('generic approvals reject mismatched payment and rules before signing', async () => {
+  for (const alter of [request => { request.payment.amountRaw = '1'; }, request => { request.payment.recipientRaw = '99'.repeat(43); }, request => { request.rulesHash = `0x${'99'.repeat(32)}`; }, request => { request.payment.memoPrefixHex = '0x123'; }]) {
+    const h = approvalHarness(); const request = structuredClone(h.request); alter(request);
+    await assert.rejects(h.run(request));
+    assert.equal(h.state.signatures, 0); assert.equal(h.state.funding, 0);
+  }
+});
+test('second-asset and legacy approvals both use the shared independently authenticated payment handler', async () => {
+  for (const options of [{ alternate: true }, { legacy: true }]) {
+    const h = approvalHarness(options); const result = await h.run();
+    assert.equal(result.state, 'pending'); assert.equal(h.state.funding, 1);
+    assert.equal(h.state.signatures, 1); assert.equal(h.state.proofs, 1);
+  }
+});
+
+
+test('protocol HTTP calls have fixed destinations and never follow redirects or send cookies', async () => {
+  const original = globalThis.fetch; const calls = [];
+  globalThis.fetch = async (url, init) => { calls.push({ url, init }); return new Response(JSON.stringify({ ok: true }), { status: 200, headers: { 'Content-Type': 'application/json' } }); };
+  try {
+    await assert.rejects(generic.api('https://evil.example/nft-other/v1', '/me', 'synthetic-token'));
+    await assert.rejects(generic.api(JUBJUB.api, '/../escape', 'synthetic-token'));
+    assert.equal(calls.length, 0);
+    await generic.api('https://app.plabs.online/nft-next-service/v1', '/bids/prepare', 'synthetic-token', { id });
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0].url, 'https://app.plabs.online/nft-next-service/v1/bids/prepare');
+    assert.equal(calls[0].init.redirect, 'error');
+    assert.equal(calls[0].init.credentials, 'omit');
+    assert.equal(calls[0].init.method, 'POST');
+    assert.equal(calls[0].init.headers.Authorization, 'Bearer synthetic-token');
+    assert.deepEqual(JSON.parse(calls[0].init.body), { id });
+  } finally { globalThis.fetch = original; }
 });
