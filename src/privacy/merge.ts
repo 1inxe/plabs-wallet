@@ -17,6 +17,7 @@ interface Dependencies {
   sync(chainId: ChainId): Promise<void>;
 }
 export function createPrivacyMergeService(deps: Dependencies) {
+  const preparing = new Set<string>();
   let queue = Promise.resolve();
   const exclusive = <T>(work: () => Promise<T>) => {
     const result = queue.then(work, work);
@@ -38,6 +39,10 @@ export function createPrivacyMergeService(deps: Dependencies) {
   };
   const activeFor = async (walletAddress: string, chainId: ChainId) => {
     const plan = (await all()).find(item => item.walletAddress === walletAddress && item.chainId === chainId && !terminal(item));
+    if (plan?.state === 'preparing' && !plan.preview.id && !plan.operationId && !preparing.has(plan.id)) {
+      plan.state = 'cancelled'; plan.message = '上次预览准备已中断，请重新预览合并';
+      await save(plan); return undefined;
+    }
     return plan ? authorizationView(plan) : undefined;
   };
   const owned = async (id: string) => {
@@ -93,8 +98,9 @@ export function createPrivacyMergeService(deps: Dependencies) {
         preview: { fees, paymentMode: mode } as PrivacyMergePreview,
         selectedIds: [], txHashes: [], authorized: false, state: 'preparing', createdAt: Date.now(),
       };
-      await save(plan);
+      preparing.add(plan.id);
       try {
+        await save(plan);
         const selected = pick(plan, inventory);
         plan.preview = await deps.prepare(plan, selected);
         plan.feeBudgetRaw = (BigInt(plan.preview.fees.feeRaw) * BigInt(batches)).toString();
@@ -108,6 +114,7 @@ export function createPrivacyMergeService(deps: Dependencies) {
         plan.selectedIds = selected.map(note => note.id); plan.state = 'review';
         await save(plan); return plan;
       } catch (error) { plan.state = 'cancelled'; await save(plan); throw error; }
+      finally { preparing.delete(plan.id); }
     }),
     cancel: (id: string) => exclusive(async () => {
       const plan = await owned(id);

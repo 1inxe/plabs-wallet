@@ -2718,6 +2718,9 @@ const dispatchRuntimeMessage = async (message: Record<string, unknown>, sender: 
       const active = await privacyMerges.activeFor(wallet.address, await selectedChainId());
       return active ?? null;
     }
+    case 'GET_PRIVACY_MERGE_PROGRESS':
+      await mergeContext(Number(message.chainId) as ChainId, String(message.poolAddress));
+      return callPrivacyEngine('PRIVACY_PROVER_PROGRESS');
     case 'PREPARE_PRIVACY_MERGE':
       return queueTransaction(() => privacyMerges.create({ chainId: Number(message.chainId) as ChainId, poolAddress: String(message.poolAddress), automatic: message.automatic === true,
         noteIds: Array.isArray(message.noteIds) ? message.noteIds.map(String) : [], feePool: message.feePool ? String(message.feePool) : undefined }));

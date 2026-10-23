@@ -1,6 +1,7 @@
 import { readJsonResponse } from '../shared/network-response';
 import { DEFAULT_MERGE_BATCH_SIZE, MERGE_WALLET_MAX_INPUTS, validMergeBatchSize } from './merge-settings';
 import { feeGatewayInterface, relayerInputLimit } from './fees';
+import { createProverClient } from './prover-client';
 import { Interface } from 'ethers';
 import { NETWORKS } from '../shared/networks';
 import type {
@@ -32,7 +33,7 @@ import { SponsoredTransferEngine, type Ports as SponsoredPorts } from './sponsor
 import { journalId as sponsoredJournalId, open as openSponsoredJournal, seal as sealSponsoredJournal, reservedInputs as sponsoredReservedInputs } from './sponsored/journal';
 import { api as sponsoredApi, object as sponsoredObject, wire as sponsoredWire, type PublicRequest } from './sponsored/protocol';
 
-const prover = new Worker(chrome.runtime.getURL('privacy-prover.js'), { type: 'module' });
+const proverClient = createProverClient(() => new Worker(chrome.runtime.getURL('privacy-prover.js'), { type: 'module' }));
 const dexProver = new Worker(chrome.runtime.getURL('dex-prover.js'), { type: 'module' });
 const dexPending = new Map<number, { resolve: (value: unknown) => void; reject: (error: Error) => void }>();
 dexProver.onmessage = event => {
@@ -44,18 +45,10 @@ dexProver.onerror = () => { for (const pending of dexPending.values()) pending.r
 const nativeRpcSync = new Worker(chrome.runtime.getURL('native-rpc-sync.worker.js'));
 let nextId = 0;
 let nextNativeSyncId = 0;
-const proverPending = new Map<number, { resolve: (value: unknown) => void; reject: (error: Error) => void }>();
 const nativeSyncPending = new Map<
   number,
   { resolve: (value: any) => void; reject: (error: Error) => void }
 >();
-
-prover.onmessage = (event) => {
-  const pending = proverPending.get(event.data.id);
-  if (!pending) return;
-  proverPending.delete(event.data.id);
-  event.data.ok ? pending.resolve(event.data.result) : pending.reject(new Error(event.data.error));
-};
 
 nativeRpcSync.onmessage = (event) => {
   const pending = nativeSyncPending.get(event.data.id);
@@ -77,7 +70,7 @@ const callWorker = (
 };
 
 const callProver = (method: string, payload: Record<string, unknown>) =>
-  callWorker(prover, proverPending, { method, body: payload });
+  proverClient.call(method, payload);
 const callNativeSync = (input: Record<string, unknown>) => {
   const id = ++nextNativeSyncId;
   return new Promise<any>((resolve, reject) => {
@@ -1263,6 +1256,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       return proof;
     }
     if (message.action === 'PRIVACY_PROVER_HEALTH') return callProver('init', {});
+    if (message.action === 'PRIVACY_PROVER_PROGRESS') return proverClient.progress();
     if (message.action === 'PRIVACY_SPONSORED_FUND') {
       const active = session;
       const work = async () => {

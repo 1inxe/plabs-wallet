@@ -1,6 +1,6 @@
 import { MergeSettingsControl } from './merge-settings';
 import { useEffect, useRef, useState } from 'react';
-import { ArrowUpRight, Check, ChevronLeft, ChevronRight, GitMerge, RefreshCw } from 'lucide-react';
+import { ArrowUpRight, Check, ChevronLeft, ChevronRight, GitMerge, LoaderCircle, RefreshCw } from 'lucide-react';
 import { formatUnits } from 'ethers';
 import { NETWORKS } from '../shared/networks';
 import { callWallet } from '../shared/runtime';
@@ -29,6 +29,9 @@ export function PrivacyNotes({ chainId, poolAddress, symbol, hidden = false, onC
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [preparation, setPreparation] = useState<'automatic' | 'selected' | null>(null);
+  const [prepareSeconds, setPrepareSeconds] = useState(0);
+  const [preparePhase, setPreparePhase] = useState('idle');
   const [error, setError] = useState('');
   const [limitError, setLimitError] = useState('');
   const [revealed, setRevealed] = useState(!hidden);
@@ -51,7 +54,7 @@ export function PrivacyNotes({ chainId, poolAddress, symbol, hidden = false, onC
       if (area === 'local' && changes.transactionSettings) { setRevision(value => value + 1); return; }
       if (area !== 'session') return;
       if ((changes.privacyUnlockSession && !changes.privacyUnlockSession.newValue) || (changes.walletUnlockSession && !changes.walletUnlockSession.newValue)) {
-        sessionValid.current = false; setLoading(false); setBusy(false); setSyncing(false);
+        sessionValid.current = false; setLoading(false); setBusy(false); setSyncing(false); setPreparation(null);
         setData(null); setSelected({}); setRunning(false); setPlan(null); setPlanPage(false); planPageOpen.current = false;
         setError('隐私账户已锁定，请重新解锁后查看 Notes');
       }
@@ -84,6 +87,22 @@ export function PrivacyNotes({ chainId, poolAddress, symbol, hidden = false, onC
     callWallet<PrivacyMergePlan | null>('GET_PRIVACY_MERGE_PLAN').then(value => { if (active && sessionValid.current) setPlan(value); }).catch(cause => { if (active && sessionValid.current) setError(errorText(cause)); });
     return () => { active = false; };
   }, [chainId]);
+  useEffect(() => {
+    if (!preparation) return;
+    let active = true;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const started = Date.now();
+    const clock = setInterval(() => setPrepareSeconds(Math.floor((Date.now() - started) / 1000)), 1000);
+    const progress = async () => {
+      try {
+        const next = await callWallet<{ phase: string }>('GET_PRIVACY_MERGE_PROGRESS', { chainId, poolAddress });
+        if (active && sessionValid.current) setPreparePhase(next.phase);
+      } catch { /* The preparation request reports the actual failure. */ }
+      if (active) timer = setTimeout(progress, 2000);
+    };
+    void progress();
+    return () => { active = false; clearInterval(clock); if (timer) clearTimeout(timer); };
+  }, [preparation, chainId, poolAddress]);
   const updatePlan = (next: PrivacyMergePlan) => {
     if (!sessionValid.current) return;
     setPlan(next);
@@ -123,11 +142,12 @@ export function PrivacyNotes({ chainId, poolAddress, symbol, hidden = false, onC
   };
   const prepare = async (automatic: boolean) => {
     if (busy || activePlan) return; setBusy(true); setError('');
+    setPreparation(automatic ? 'automatic' : 'selected'); setPrepareSeconds(0); setPreparePhase('idle');
     try {
       const next = await callWallet<PrivacyMergePlan>('PREPARE_PRIVACY_MERGE', { chainId, poolAddress, automatic, noteIds: Object.keys(selected) });
       if (mounted.current && sessionValid.current) { setPlan(next); openPlan(); }
     } catch (cause) { if (mounted.current && sessionValid.current) setError(errorText(cause)); }
-    finally { if (mounted.current && sessionValid.current) setBusy(false); }
+    finally { if (mounted.current && sessionValid.current) { setBusy(false); setPreparation(null); } }
   };
   const start = async () => {
     if (!plan || busy) return; setBusy(true); setError('');
@@ -179,7 +199,7 @@ export function PrivacyNotes({ chainId, poolAddress, symbol, hidden = false, onC
     {!loading && data?.items.length === 0 && <p className="empty-state">此分类暂无 Notes</p>}
     <div className="notes-pagination"><Select ariaLabel="每页 Notes 数量" value={String(pageSize)} onValueChange={value => { setPageSize(Number(value)); setPage(1); }} options={[10, 20, 50].map(value => ({ value: String(value), label: `${value} 条 / 页` }))} /><div><IconButton label="上一页 Notes" disabled={loading || page <= 1} onClick={() => setPage(value => value - 1)}><ChevronLeft size={16} /></IconButton><span>{data?.page ?? page} / {data?.pages ?? 1}</span><IconButton label="下一页 Notes" disabled={loading || page >= (data?.pages ?? 1)} onClick={() => setPage(value => value + 1)}><ChevronRight size={16} /></IconButton></div></div>
     <p className="micro text-muted">{data?.total ?? 0} 条筛选结果 · {data?.syncedAt ? `最近同步 ${new Date(data.syncedAt).toLocaleTimeString()}` : '尚未同步'}</p>
-    <div className="panel form-stack"><div className="row-between"><h2>合并 Notes</h2><MergeSettingsControl compact chainId={chainId} poolAddress={poolAddress} onSaved={() => setRevision(value => value + 1)} /></div>{!writesEnabled && <p className="micro text-amber">合并会发起隐私交易，请先在设置中开启实验性主网操作。</p>}<p className="micro text-muted">将多个可用 Notes 汇总回当前隐私地址，不是转给其他人。待确认、已花费和零余额 Notes 不参与。</p>{summaryRow('跨页已选', `${selection.length} 个`)}{summaryRow('所选总额', `${revealed ? formatUnits(selectedTotal, decimals) : '••••••'} ${symbol}`)}<small>{maxInputs ? `当前每批最多 ${maxInputs} 个输入；可跨页选择更多，超出后自动分批合并到 1 个。` : '读取合并输入上限中…'}</small>{limitError && <p className="micro text-danger">{limitError}</p>}<Button variant="primary" disabled={!canMerge || selection.length < 2} onClick={() => prepare(false)}><GitMerge size={16} />{busy ? '准备中…' : `预览合并所选 ${selection.length} 个`}</Button><Button disabled={!canMerge || (data?.mergeableCount ?? 0) < 2} onClick={() => prepare(true)}>自动合并全部可用 Notes → 1 个</Button><p className="micro text-muted">先预览范围与费用，再确认执行。自动合并仅处理开始时已确认的 Notes，不包含后续新入账。已花费的历史 Notes 会保留，不计入最终的 1 个可用 Note。</p></div>
+    <div className="panel form-stack"><div className="row-between"><h2>合并 Notes</h2><MergeSettingsControl compact chainId={chainId} poolAddress={poolAddress} onSaved={() => setRevision(value => value + 1)} /></div>{!writesEnabled && <p className="micro text-amber">合并会发起隐私交易，请先在设置中开启实验性主网操作。</p>}<p className="micro text-muted">将多个可用 Notes 汇总回当前隐私地址，不是转给其他人。待确认、已花费和零余额 Notes 不参与。</p>{summaryRow('跨页已选', `${selection.length} 个`)}{summaryRow('所选总额', `${revealed ? formatUnits(selectedTotal, decimals) : '••••••'} ${symbol}`)}<small>{maxInputs ? `当前每批最多 ${maxInputs} 个输入；可跨页选择更多，超出后自动分批合并到 1 个。` : '读取合并输入上限中…'}</small>{limitError && <p className="micro text-danger">{limitError}</p>}<Button variant="primary" disabled={!canMerge || selection.length < 2} onClick={() => prepare(false)}><GitMerge size={16} />{preparation === 'selected' ? '正在准备所选合并…' : `预览合并所选 ${selection.length} 个`}</Button><Button disabled={!canMerge || (data?.mergeableCount ?? 0) < 2} onClick={() => prepare(true)}>{preparation === 'automatic' && <LoaderCircle size={16} className="animate-spin" />}{preparation === 'automatic' ? '正在准备自动合并…' : '自动合并全部可用 Notes → 1 个'}</Button>{preparation && <div role="status" aria-live="polite" className="panel micro text-mint"><p>{preparePhase === 'initializing' ? '正在加载本地证明文件…' : preparePhase === 'proving' ? '正在生成本批合并证明…' : '正在检查 Notes、合并上限和手续费…'} 已等待 {prepareSeconds} 秒。</p><p className="text-muted">多张 Note 的证明可能需要数分钟。预览完成后还需确认范围与预算，确认前不会发送交易。</p></div>}{error && <p role="alert" className="micro text-danger">{error}</p>}<p className="micro text-muted">先预览范围与费用，再确认执行。自动合并仅处理开始时已确认的 Notes，不包含后续新入账。已花费的历史 Notes 会保留，不计入最终的 1 个可用 Note。</p></div>
     <details className="notes-payment"><summary>全局支付方式 · {payment.mode === 'private' ? '隐私资产' : network.nativeSymbol}</summary><PaymentModeControl nativeSymbol={network.nativeSymbol} disabled={busy || Boolean(activePlan)} /></details>
     {planPage && plan && <PageView open onOpenChange={closePlan} title={labels[plan.state]} description={`${plan.symbol} · ${NETWORKS[plan.chainId].name}`}>
       <div className="intro compact-intro"><span className="hero-symbol">{plan.state === 'complete' ? <Check size={28} /> : <GitMerge size={28} />}</span><h1>{plan.initialCount} 个 Notes → 1 个</h1><p>{plan.automatic ? '自动分批合并，后续批次不会超过已确认预算。' : '仅合并选中的 Notes，按每批上限分批处理；未选择的保持不变。'}</p></div>
