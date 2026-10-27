@@ -34,9 +34,10 @@ async function syncAll(){
   try{const result=await syncPrivacyAssets({guard:async()=>{},phase:p=>{run.phase=p;},tokens:async()=>{run.tokens++;return[snapshot];},nfts:async()=>{run.nfts++;if(run.paused)await new Promise(resolve=>{run.release=resolve;});nftSnapshot={...nftSnapshot,syncComplete:!run.failNft,syncedAt:Date.now(),error:run.failNft?'Synthetic NFT outage':undefined};return nftSnapshot;}});run.phase='complete';return{ok:true,result};}
   catch(error){run.phase='error';return{ok:false,error:{message:error.message}};}
 }
+window.__homeScreen=mode=>{state={...state,hasVault:mode!=='setup',unlocked:mode==='home'};};
 window.__homeRequests=[];let task=null;window.__homeDecisions=[];
 window.__homeApproval=()=>{task={id:'internal-nft-task',origin:'chrome-extension://synthetic/popup.html',method:'wallet_sendPrivateNft',phase:'approval',requiresPrivacy:true,privacyExists:true,privacyUnlocked:true,canCancel:true,createdAt:Date.now(),approval:{id:'internal-nft-approval',origin:'chrome-extension://synthetic/popup.html',kind:'transaction',title:'确认发送 NFT 与 ETH Gas',createdAt:Date.now(),details:{NFT编号:'#7',收款隐私地址:privacyAddress,Gas费用上限:'0.0001 ETH'}}};};
-window.chrome={runtime:{getManifest:()=>({version:'0.8.4'}),onMessage:event,async sendMessage(request){window.__homeRequests.push(request.action);let result;switch(request.action){case'GET_STATE':result=state;break;case'GET_PRIVACY_STATE':result=privacy;break;case'GET_DAPP_UI_STATE':result=task;break;case'APPROVAL_DECISION':window.__homeDecisions.push(request.approved);task=null;result=true;break;case'GET_ACTIVE_SITE_CONNECTION':result=null;break;case'GET_PUBLIC_ASSETS':result=[{type:'native',symbol:'ETH',balanceRaw:'1000000000000000000',formatted:'1',decimals:18,address:null}];break;case'GET_TRANSACTION_SETTINGS':result={experimentalPrivacyWrites:true,privacyPaymentMode:'native',privacyMergeBatchSize:0};break;case'GET_VISIBLE_PRIVACY_ASSETS':result=[];break;case'GET_PRIVACY_SNAPSHOTS':result=[snapshot];break;case'SYNC_PRIVACY':return syncAll();case'GET_PRIVACY_SYNC_PROGRESS':result={chainId:1,progress:window.__homeSync.phase==='nfts'?80:window.__homeSync.phase==='complete'?100:0,status:['complete','error'].includes(window.__homeSync.phase)?window.__homeSync.phase:'syncing',message:window.__homeSync.phase==='nfts'?'正在同步 NFT':'正在同步资产'};break;case'GET_PRIVACY_ACTIVITY':result={items:[],page:1,pages:1,total:0,pageSize:20};break;case'GET_PRIVATE_NFT_ASSETS':result=nftSnapshot;break;case'SWITCH_ACCOUNT':state={...state,activeAccountId:request.accountId,address:address2,accountName:'备用账户'};privacy={...privacy,privacyAddress:state.accounts[1].privacyAddress,unlocked:false};result=state;break;default:throw Error('Unexpected wallet home request '+request.action);}return{ok:true,result};}},tabs:{query:async()=>[],onActivated:event,onUpdated:event},windows:{onFocusChanged:event},storage:{onChanged:event}};
+window.chrome={runtime:{getManifest:()=>({version:'0.8.6'}),onMessage:event,async sendMessage(request){window.__homeRequests.push(request.action);let result;switch(request.action){case'GET_STATE':result=state;break;case'GET_PERMISSIONS':result={};break;case'GET_LOCK_SETTINGS':result={walletMinutes:15,privacyMinutes:15};break;case'GET_PRIVACY_STATE':result=privacy;break;case'GET_DAPP_UI_STATE':result=task;break;case'APPROVAL_DECISION':window.__homeDecisions.push(request.approved);task=null;result=true;break;case'GET_ACTIVE_SITE_CONNECTION':result=null;break;case'GET_PUBLIC_ASSETS':result=[{type:'native',symbol:'ETH',balanceRaw:'1000000000000000000',formatted:'1',decimals:18,address:null}];break;case'GET_TRANSACTION_SETTINGS':result={experimentalPrivacyWrites:true,privacyPaymentMode:'native',privacyMergeBatchSize:0};break;case'GET_VISIBLE_PRIVACY_ASSETS':result=[];break;case'GET_PRIVACY_SNAPSHOTS':result=[snapshot];break;case'SYNC_PRIVACY':return syncAll();case'GET_PRIVACY_SYNC_PROGRESS':result={chainId:1,progress:window.__homeSync.phase==='nfts'?80:window.__homeSync.phase==='complete'?100:0,status:['complete','error'].includes(window.__homeSync.phase)?window.__homeSync.phase:'syncing',message:window.__homeSync.phase==='nfts'?'正在同步 NFT':'正在同步资产'};break;case'GET_PRIVACY_ACTIVITY':result={items:[],page:1,pages:1,total:0,pageSize:20};break;case'GET_PRIVATE_NFT_ASSETS':result=nftSnapshot;break;case'SWITCH_ACCOUNT':state={...state,activeAccountId:request.accountId,address:address2,accountName:'备用账户'};privacy={...privacy,privacyAddress:state.accounts[1].privacyAddress,unlocked:false};result=state;break;default:throw Error('Unexpected wallet home request '+request.action);}return{ok:true,result};}},tabs:{query:async()=>[],onActivated:event,onUpdated:event},windows:{onFocusChanged:event},storage:{onChanged:event}};
 await import('/src/popup/main.tsx');
 `;
       },
@@ -117,7 +118,7 @@ try {
       .waitFor();
     await page.getByRole('button', { name: '返回', exact: true }).click();
     await page.getByRole('tab', { name: '公开资产', exact: true }).click();
-    await page.getByRole('heading', { name: /公开资产/ }).waitFor();
+    await page.locator('.public-assets').waitFor();
     assert.equal(await page.locator('.private-assets').count(), 0);
     await page.getByRole('tab', { name: 'NFT', exact: true }).click();
     await page
@@ -211,6 +212,16 @@ try {
       false,
       true,
     ]);
+    await page.getByRole('button',{name:'设置',exact:true}).click();
+    await page.locator('.page-header .page-heading strong').filter({hasText:'设置'}).waitFor();
+    await page.getByRole('button',{name:'保存设置',exact:true}).waitFor();
+    await page.screenshot({path:join(artifacts,`settings-${width}.png`),fullPage:true});
+    await page.getByRole('button',{name:'返回',exact:true}).click();
+    await page.getByRole('button',{name:'接收',exact:true}).click();
+    await page.getByRole('heading',{name:'接收隐私资产',exact:true}).first().waitFor();
+    assert.equal(await page.locator('.qr-code svg').count(),1);
+    await page.screenshot({path:join(artifacts,`receive-${width}.png`),fullPage:true});
+    await page.getByRole('button',{name:'返回',exact:true}).click();
     await page.getByRole('button', { name: '选择账户', exact: true }).click();
     await page
       .getByRole('heading', { name: '账户管理', exact: true })
@@ -252,6 +263,17 @@ try {
         .getAttribute('data-state'),
       'active',
     );
+    await page.getByRole('button',{name:'解锁隐私资产',exact:true}).click();
+    await page.locator('.privacy-unlock-page .page-heading strong').filter({hasText:'解锁隐私账户'}).waitFor();
+    await page.screenshot({path:join(artifacts,`privacy-unlock-${width}.png`),fullPage:true});
+    await page.getByRole('button',{name:'返回',exact:true}).click();
+    await page.evaluate(()=>window.__homeScreen('locked'));
+    await page.getByPlaceholder('请输入钱包主密码',{exact:true}).waitFor();
+    await page.screenshot({path:join(artifacts,`unlock-${width}.png`),fullPage:true});
+    await page.evaluate(()=>window.__homeScreen('setup'));
+    await page.getByRole('heading',{name:'创建钱包',exact:true}).waitFor();
+    assert.equal(await page.getByRole('button',{name:'创建并备份',exact:true}).isDisabled(),true,'Backup acknowledgement is still required');
+    await page.screenshot({path:join(artifacts,`setup-${width}.png`),fullPage:true});
     assert.deepEqual(errors, []);
     console.log(
       'PASS unified wallet home, compact account addresses/QR, history button and account switching at ' +

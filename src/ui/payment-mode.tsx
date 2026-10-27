@@ -36,9 +36,9 @@ export function usePrivacyPaymentMode() {
 
 export function PaymentModeControl({ nativeSymbol, disabled = false }: { nativeSymbol: string; disabled?: boolean }) {
   const { mode, loaded, saving, error, change } = usePrivacyPaymentMode();
-  return <section className="panel form-stack payment-mode-panel"><div className="row-between"><h2>手续费支付方式</h2><small>{saving ? '保存中…' : '全局设置 · 自动保存'}</small></div>
+  return <section className="panel form-stack payment-mode-panel"><div className="row-between"><h2>手续费支付方式</h2><small>{saving ? '保存中…' : '自动保存'}</small></div>
     <fieldset disabled={disabled || saving || !loaded}><Segments label="全局手续费支付方式" value={mode} onChange={value => { void change(value); }} options={[{ value: 'native', label: `${nativeSymbol} · 原生币` }, { value: 'private', label: '隐私资产支付' }]} /></fieldset>
-    <p className="micro text-muted">{mode === 'native' ? `当前 EVM 账户支付 ${nativeSymbol} Gas，链上可见交易发起地址。` : 'Relayer 代付 Gas，从隐私资产扣除手续费，无需公开账户发起转账。'} Shield 存入仍需原生 Gas。</p>
+    <p className="micro text-muted">{mode === 'native' ? `公开账户支付 ${nativeSymbol} Gas，发起地址可见。` : '使用隐私资产支付手续费，由 Relayer 代付 Gas。'} 存入仍需支付原生 Gas。</p>
     {error && <p role="alert" className="micro text-danger">{error}</p>}
   </section>;
 }

@@ -70,13 +70,6 @@
   .tiny-badge { display: inline-flex; align-items: center; width: max-content; max-width: 100%; font-size: 9px; line-height: 15px; padding: 0 5px; border-radius: 4px; background: #4edea31a; color: #4edea3; white-space: nowrap; }
   .tiny-badge.public { color: #ffb95f; background: #ffb95f1a; }
   .tiny-badge.neutral { color: #bbcabf; background: #31353b; }
-  .session-banner { display: flex; align-items: center; gap: 8px; padding: 10px; background: #262a30e6; border: 1px solid #4edea333; border-radius: 12px; }
-  .session-banner strong { font-size: 11px; font-weight: 500; }
-  .session-banner small { display: block; }
-  .session-icon { width: 28px; height: 28px; border-radius: 50%; border: 1px solid #4edea34d; background: #4edea31a; display: grid; place-items: center; color: #4edea3; position: relative; }
-  .session-icon i { position: absolute; width: 6px; height: 6px; border-radius: 50%; background: #4edea3; top: -1px; right: -1px; box-shadow: 0 0 6px #4edea3; }
-  .lock-private { display: flex; gap: 3px; align-items: center; font-size: 10px; background: #0a0e13; padding: 8px; border-radius: 7px; }
-  .lock-private svg { color: #ffb95f; }
   .net-worth { display: flex; align-items: center; flex-direction: column; gap: 10px; padding: 20px 10px 17px; background: radial-gradient(at 80% 10%,#4edea30b,transparent 65%),#181c21; border-radius: 12px; }
   .net-worth>span { color: #bbcabf; font-size: 12px; }
   .net-worth strong { font-size: 32px; letter-spacing: -.03em; }
@@ -96,16 +89,12 @@
   .route-icon.cyan { background: #00dce618; color: #6ff6ff; }
   .vault-card { position: relative; padding: 16px; background: radial-gradient(at 85% 0%,#4edea316,transparent 60%),radial-gradient(at 0% 100%,#00dce60c,transparent 65%),#181c21; box-shadow: 0 8px 24px #0002; }
   .vault-card h2 { font-size: 14px; }
-  .vault-badge { border: 1px solid #4edea333; border-radius: 12px; font: 8px 'JetBrains Mono',monospace; padding: 3px 5px; }
   .key-button { display: flex; align-items: center; gap: 3px; font-size: 10px; padding: 5px; color: #bbcabf; background: #1c2025; border-radius: 5px; }
   .balance-overview { margin-top: 17px; }
   .balance-overview>.micro { font-size: 9px; color: #bbcabf; }
   .balance-number { font-size: 32px; font-weight: 700; letter-spacing: -.025em; line-height: 40px; }
   .balance-number small { font-size: 12px; color: #4edea3; font-weight: 600; }
   .valuation-note { font-size: 9px; }
-  .note-stats { display: flex; justify-content: space-between; gap: 8px; padding-top: 10px; margin-top: 10px; border-top: 1px solid #3c4a4233; font-size: 9px; color: #bbcabf; }
-  .note-stats>span { display: flex; align-items: center; gap: 4px; }
-  .note-stats b, .note-stats svg { color: #4edea3; }
   .action-grid { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 8px; margin-top: 16px; }
   .action-grid>button { display: flex; flex-direction: column; justify-content: center; align-items: center; min-width: 0; gap: 6px; padding: 12px 3px; border-radius: 12px; border: 1px solid #3c4a424d; background: #1c2025; }
   .action-grid>button>span:first-child { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 50%; background: #31353b; }
@@ -135,8 +124,6 @@
   .public-assets h2 { font-size: 12px; }
   .public-assets .row-between button { width: 24px; height: 28px; }
   .public-hint { display: flex; gap: 4px; justify-content: center; margin-top: 14px; color: #86948a; font-size: 9px; }
-  .security-footer { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 12px 0; color: #86948a; font-size: 9px; text-align: center; }
-  .security-footer .status-dot { width: 5px; height: 5px; }
   .empty-state { display: flex; flex-direction: column; align-items: center; gap: 8px; color: #86948a; padding: 26px 8px; font-size: 11px; }
   .empty-state svg { opacity: .5; }
   .flow-page { position: fixed; inset: 0 auto 0 0; width: var(--wallet-width); max-width: 100vw; z-index: 35; background: #101419; overflow-y: auto; overscroll-behavior: contain; }
@@ -166,9 +153,6 @@
   .unlock-form .primary-cta { margin-top: 30px; }
   .unlock-form .micro { font-size: 9px; padding: 0 4px; }
   .recovery-link { display: flex; align-items: center; justify-content: center; gap: 5px; color: #bbcabf; font-size: 12px; width: 100%; margin-top: 20px; }
-  .security-card { display: flex; align-items: flex-start; gap: 12px; background: #181c21; border-radius: 12px; padding: 14px 12px; margin-top: 24px; }
-  .security-card strong { color: #4edea3; font-size: 10px; font-weight: 500; }
-  .security-card p { color: #bbcabf; font-size: 11px; line-height: 18px; margin-top: 2px; }
   .segments { display: flex; background: #0a0e13; border-radius: 8px; padding: 4px; gap: 4px; }
   .segments button { flex: 1; min-width: 0; padding: 9px 4px; font-size: 12px; color: #bbcabf; border-radius: 6px; }
   .segments .selected { background: #1c2025; color: #4edea3; box-shadow: 0 2px 4px #0004; }
@@ -177,11 +161,6 @@
   .step-card strong { font-size: 12px; }
   .step-card small { display: block; color: #4edea3; }
   .step-track { width: 44px; height: 4px; background: linear-gradient(to right,#4edea3 50%,#31353b 50%); border-radius: 5px; }
-  .feature-list { display: grid; gap: 8px; }
-  .feature-list>div { display: flex; align-items: center; gap: 14px; padding: 14px; background: #181c21; border: 1px solid #3c4a4233; border-radius: 12px; }
-  .feature-list svg { color: #4edea3; }
-  .feature-list strong, .feature-list small { display: block; }
-  .feature-list small { font-size: 11px; margin-top: 3px; }
   .check-row { display: flex; align-items: flex-start; gap: 10px; font-size: 12px; line-height: 19px; color: #bbcabf; padding: 10px; background: #181c21; border-radius: 8px; }
   .phrase-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 8px; }
   .phrase-grid>div { display: flex; gap: 7px; padding: 12px 8px; border: 1px solid #3c4a4255; background: #1c2025; border-radius: 6px; font-size: 11px; }
@@ -213,11 +192,6 @@
   .percentage-row button:last-child { color: #4edea3; background: #4edea326; }
   .amount-hint { margin-top: 9px; display: flex; gap: 6px; align-items: center; font-size: 10px; color: #bbcabf; padding: 8px; background: #101419; border-radius: 8px; }
   .amount-hint svg { color: #ffb95f; flex-shrink: 0; }
-  .proof-panel h2 { font-size: 12px; }
-  .proof-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
-  .proof-grid>div { background: #1c2025; border-radius: 8px; padding: 10px 8px; }
-  .proof-grid strong, .proof-grid small { display: block; }
-  .proof-grid strong { font-size: 10px; margin-top: 4px; font-weight: 500; }
   .explorer-link { display: flex; justify-content: center; align-items: center; gap: 5px; color: #4edea3; font-size: 12px; }
   .settings-body { gap: 20px; }
   .section-title { display: flex; align-items: center; gap: 5px; margin-bottom: 8px; font-size: 11px; color: #4edea3; }
@@ -244,8 +218,6 @@
 @media (max-width: 379px) {
   .page-body { padding: 12px; }
   .account-header { padding: 6px 10px; }
-  .vault-badge { display: none; }
-  .note-stats { font-size: 8px; }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none!important; transition: none!important; } }
 
@@ -280,16 +252,9 @@ body { width: min(100vw, 420px); margin-inline: auto; }
 .eyebrow { font: 10px 'JetBrains Mono', monospace; color: #9ebdb0; letter-spacing: .09em; }
 .balance-number { font-size: 44px; line-height: 56px; font-weight: 500; }
 .balance-number small { font-size: 13px; color: #c2d3ca; font-weight: 400; }
-.balance-caption { color: #a2b3ac; font-size: 12px; margin-top: 2px; }
-.valuation-status { display: flex; align-items: center; gap: 9px; padding: 12px; margin-top: 18px; border: 1px solid #6b89792c; border-radius: 10px; color: #b5c3bd; background: #0f171c77; font-size: 11px; }
-.valuation-status>svg { flex-shrink: 0; color: #8ca69c; }
-.valuation-status>span:nth-child(2) { flex: 1; }
-.valuation-status small { display: block; font-size: 10px; color: #81958b; margin-top: 3px; }
-.note-stats { font-size: 10px; padding-top: 14px; margin-top: 14px; }
 .action-grid>button { transition: background .15s, border-color .15s; }
 .action-grid>button:hover:not(:disabled) { background: #26362f; border-color: #4edea377; }
 .action-grid>button:disabled { opacity: .5; }
-.capability-note { text-align: center; color: #859991; font-size: 10px; margin-top: 10px; }
 .shield-entry { padding: 12px; margin-top: 12px; background: #4edea30c; border: 1px solid #4edea32c; border-radius: 10px; }
 .shield-entry:disabled { opacity: .4; }
 .text-toggle { color: #a6c6b6; font-size: 11px; padding: 8px 4px; }
@@ -301,7 +266,6 @@ body { width: min(100vw, 420px); margin-inline: auto; }
 .qr-view { padding-block: 24px; }
 .qr-view p { user-select: all; line-height: 1.8; }
 .page-heading small { color: #9aadA4; }
-.session-banner { background: #17231e; border-color: #354e40; }
 .settings-body .section-title { font-size: 12px; margin-bottom: 10px; }
 @media (min-width: 600px) { body { padding-block: 24px; } .wallet-shell, .route-screen { border: 1px solid #2b3735; border-radius: 20px; overflow: clip; } }
 .asset-button { width: 100%; text-align: left; border-radius: 8px; }
@@ -311,7 +275,6 @@ body { width: min(100vw, 420px); margin-inline: auto; }
 /* Put usable balances before addresses and engine diagnostics on small screens. */
 .balance-overview { margin-top: 10px; }
 .balance-number { font-size: 40px; line-height: 48px; }
-.valuation-status { margin-top: 12px; padding: 10px; }
 .action-grid { margin-top: 12px; }
 .action-grid>button { padding: 9px 3px; }
 .action-grid>button>span:first-child { width: 32px; height: 32px; }
@@ -349,8 +312,6 @@ body { width: min(100vw, 420px); margin-inline: auto; }
 .note-item-header input { width: 16px; height: 16px; }
 .note-identity { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-left: 24px; color: #9bafa4; font-size: 10px; }
 .note-identity .copy-button { height: 24px; width: 24px; }
-.note-flags { display: flex; gap: 14px; padding-left: 24px; font-size: 10px; color: #8ca698; }
-.note-flags b { font-weight: 500; color: #c5d9cd; }
 .notes-pagination { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
 .notes-pagination>div { display: flex; align-items: center; gap: 3px; font-size: 11px; }
 .notes-pagination button { font-size: 11px; }
@@ -515,7 +476,24 @@ html:has(#root:not([hidden]) .connected-site-bar):not(:has(#root .flow-page)) .w
 .sync-summary > .sync-progress { flex: 1; margin: 0; }
 .sync-summary > button:first-of-type { margin-left: auto; }
 .sync-summary .text-toggle { font-size: 9px; }
-.overview-history { display: flex; justify-content: flex-end; margin-top: 10px; }
 .activity-history-button { display: inline-flex; align-items: center; gap: 5px; color: #90b7a5; font-size: 10px; padding: 4px 0 4px 8px; }
 .nft-send-form { display: grid; gap: 12px; }
 .nft-send-form textarea { width: 100%; min-height: 80px; resize: vertical; border: 1px solid #34433d; border-radius: 8px; background: #11161c; color: #d4e0dc; padding: 10px; font-size: 12px; overflow-wrap: anywhere; }
+
+.private-session { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 0 4px; min-height: 24px; color: #8c9ba8; font-size: 10px; }
+.private-session > span { display: inline-flex; align-items: center; gap: 6px; }
+.private-session > button { padding: 4px 0 4px 12px; color: #b9c6c0; }
+.vault-card { background: #171e22; border-color: #2b3735; box-shadow: none; }
+.vault-card .balance-overview { display: flex; align-items: center; justify-content: space-between; margin-top: 12px; }
+.vault-card .balance-number { font-size: 32px; line-height: 44px; }
+.vault-card .action-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 16px; }
+.vault-card .action-grid > button { min-height: 62px; }
+.vault-card .shield-entry { margin-top: 10px; padding: 10px; }
+.privacy-welcome { display: grid; gap: 12px; padding: 16px; }
+.privacy-welcome > p { margin: 0; }
+.unlock-hero { padding-top: 24px; }
+.unlock-hero .brand-mark { margin: 0 auto; width: 48px; height: 48px; }
+.unlock-hero h1 { margin-top: 16px; }
+
+.asset-list-tools { display: flex; align-items: center; justify-content: flex-end; gap: 4px; min-height: 32px; }
+.private-nft-grid { margin-top: 0; }

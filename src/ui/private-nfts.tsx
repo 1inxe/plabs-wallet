@@ -1,4 +1,4 @@
-import { ExternalLink, Gem, RefreshCw, Send } from 'lucide-react';
+import { ExternalLink, RefreshCw, Send } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import type { NftAssetSummary } from '../privacy/nft/holdings';
 import { callWallet } from '../shared/runtime';
@@ -101,15 +101,9 @@ export function PrivateNfts({
   const selectedAsset = snapshot?.items.find((asset) => asset.id === selected);
   return (
     <section className="panel private-nft-assets">
-      <div className="row-between">
-        <div>
-          <h2>
-            <Gem size={17} className="text-green" />
-            隐私 NFT <span className="tiny-badge">pERC721</span>
-          </h2>
-          <small>私有持有 · Ethereum</small>
-        </div>
-        {!managed && (
+      {!managed && (
+        <div className="row-between">
+          <h2>NFT</h2>
           <IconButton
             label="同步隐私 NFT"
             disabled={!unlocked || chainId !== 1 || syncing}
@@ -117,8 +111,8 @@ export function PrivateNfts({
           >
             <RefreshCw size={15} className={syncing ? 'animate-spin' : ''} />
           </IconButton>
-        )}
-      </div>
+        </div>
+      )}
       {!unlocked ? (
         <EmptyState>解锁隐私钱包后查看 NFT</EmptyState>
       ) : chainId !== 1 ? (
@@ -150,12 +144,7 @@ export function PrivateNfts({
                   onClick={() => setSelected(asset.id)}
                 >
                   <strong>{asset.name}</strong>
-                  <span>
-                    #{asset.tokenId}
-                    <small>
-                      {asset.state === 'pending' ? '铸造确认中' : '私有持有'}
-                    </small>
-                  </span>
+                  <span>#{asset.tokenId}</span>
                 </button>
               </article>
             ))}
@@ -178,7 +167,7 @@ export function PrivateNfts({
           )}
           {(snapshot?.error || error) && (
             <p className="private-nft-error" role="alert">
-              {error || snapshot?.error}；已有资产和恢复资料已保留。
+              {error || snapshot?.error}
             </p>
           )}
         </>
@@ -193,7 +182,7 @@ export function PrivateNfts({
             }
           }}
           title={`${selectedAsset.name} #${selectedAsset.tokenId}`}
-          description="Ethereum · pERC721 隐私 NFT"
+          description="Ethereum"
         >
           <div className="nft-detail-art">
             <NftArtwork
@@ -207,9 +196,7 @@ export function PrivateNfts({
             <div className="row-between">
               <span>持有状态</span>
               <strong>
-                {selectedAsset.state === 'pending'
-                  ? '等待链上确认'
-                  : '私有持有'}
+                {selectedAsset.state === 'pending' ? '等待链上确认' : '已持有'}
               </strong>
             </div>
             <div className="row-between">
@@ -360,9 +347,7 @@ function NftSend({
           autoComplete="off"
           spellCheck={false}
         />
-        <small>
-          请填写接收方的 PLabs 隐私地址。Gas 使用 Ethereum 公开账户的 ETH 支付。
-        </small>
+        <small>仅支持 PLabs 隐私地址，Gas 使用 ETH 支付。</small>
         <Button
           variant="primary"
           disabled={busy || pending || done || !recipient.trim()}
@@ -379,12 +364,12 @@ function NftSend({
       </div>
       {pending && (
         <p role="status" className="panel text-mint micro">
-          已提交，等待确认。可以关闭此页，发送记录会保留。
+          已提交，等待链上确认。
         </p>
       )}
       {done && (
         <p role="status" className="panel text-mint micro">
-          NFT 已发送至接收方隐私地址。
+          NFT 已发送。
         </p>
       )}
       {transfer?.txHash && (
