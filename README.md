@@ -7,6 +7,8 @@ A Chrome extension for managing EVM accounts and PLabs privacy assets. It stores
 - Manage multiple EVM accounts and send native coins or ERC-20 tokens on Monad, Ethereum, Base and Arbitrum.
 - Create or import an independent privacy account for each EVM account, with a separate password.
 - Synchronize PLabs privacy assets on Monad and Ethereum; receive, send, shield and merge supported assets.
+- Mint supported Ethereum private NFTs directly from connected dApps, with local NFT proofs, ETH gas review, and recovery of the original mint.
+- Synchronize private pERC721 NFT holdings, including incoming transfers and spent-note removal, in a separate NFT asset section.
 - Connect to dApps, sign messages and approve access to selected privacy data.
 
 [Web application](https://github.com/1inxe/plabs-network) · [JavaScript SDK](https://github.com/1inxe/plabs-js-sdk)
@@ -76,3 +78,15 @@ Update the English and Chinese READMEs together when changing documentation.
 ## License and privacy
 
 No repository-wide license has been declared. Third-party components retain their own licenses; see [licensing](LICENSING.md) and [third-party notices](THIRD-PARTY-NOTICES.md). The [privacy policy draft](docs/privacy-policy.html) documents data handling and is not yet an effective published policy.
+
+## Private NFT mint and synchronization
+
+The current NFT integration supports free pERC721 mints on the reviewed Ethereum PrivaSea market. Connect the updated extension to PLabs Network, switch to Ethereum, unlock the same privacy wallet used for your allocation, and enable experimental privacy writes in settings. Approve the mint reservation, then review the final ETH gas fee in the wallet. The site receives only a public operation status. A rejected transaction can resume its original reservation and proof; after a transaction hash is saved, recovery only checks that hash.
+
+The **Private NFTs** section synchronizes the reviewed market's collection catalog and scans encrypted NFT outputs locally. It derives spent markers locally and removes spent Notes from the holding list. NFTs are separate assets with token IDs; they are never added to ERC20 balances. Automatic synchronization runs while the unlocked wallet view is open when its automatic-sync setting is enabled; the section also has a manual sync button. Failed synchronization preserves cached holdings and reports incomplete coverage. NFT transfer submission, paid drops, auctions, and unrelated public ERC721 collections are outside this integration.
+
+Mint proofs, reservations and private NFT Notes are encrypted with the existing privacy-state key. Password rotation preserves that key. Ordinary Vault exports do not include the local recovery journal; retain extension storage while a mint is unresolved. Confirmed holdings can be recovered by scanning the chain after importing the same privacy Vault.
+
+Rebuild and reload the extension, then refresh connected pages to discover `nftMinting`. The narrow `plabs_mintNft`, `plabs_getNftMints`, and `plabs_resumeNftMint` APIs do not enable arbitrary `eth_sendTransaction`. The standalone SDK source exposes equivalent typed methods; PLabs Network bridges the provider directly while its npm dependency remains at 0.2.0.
+
+Verification: `node --test tests/nft-mint.test.mjs`; after `pnpm build`, run `node tests/nft-prover-browser.mjs` for a real local Groth16 proof and Note scan using a synthetic seed, and `node tests/nft-wallet-ui-browser.mjs` for the NFT section at 370/420 px. Browser tests reuse an installed Playwright/Chrome; set `NFT_PLAYWRIGHT_PATH` and `NFT_BROWSER_PATH` when needed. These tests do not mint a real NFT or spend mainnet funds.

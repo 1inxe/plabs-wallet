@@ -465,3 +465,15 @@ html:has(#root:not([hidden]) .connected-site-bar):not(:has(#root .flow-page)) .w
 .send-review-row { display: flex; justify-content: space-between; align-items: start; gap: 16px; padding: 12px 0; border-bottom: 1px solid #3c4a4233; font-size: 12px; }
 .send-review-row > span { flex-shrink: 0; color: #9baaa2; }
 .send-review-row > strong { text-align: right; overflow-wrap: anywhere; min-width: 0; }
+
+.private-nft-assets h2 { display: flex; align-items: center; gap: 7px; }
+.private-nft-assets > .row-between > div > small { color: var(--color-muted, #8c9ba8); font-size: 10px; }
+.private-nft-row { display: flex; align-items: center; gap: 12px; padding: 14px 0; border-bottom: 1px solid #26313a; }
+.private-nft-icon { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 10px; background: #4bdfa512; color: #4bdfa5; flex: none; }
+.private-nft-row > div { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.private-nft-row strong { font-size: 12px; overflow-wrap: anywhere; }
+.private-nft-row small { color: #8c9ba8; font-size: 10px; margin-top: 4px; }
+.private-nft-row > a { padding: 8px; color: #8c9ba8; }
+.private-nft-assets > p { margin-top: 10px; }
+
+.private-nft-error { color: #ffabb3; background: #24161a; border: 1px solid #563037; border-radius: 8px; padding: 10px; font-size: 11px; }

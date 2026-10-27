@@ -80,6 +80,38 @@
     {
       "path": "wasm/aaeba55a93a41b4221ffd0f7b6f41c83e077c331da9deb945e18e006373c6a78/privacybtc_wasm_prover.js",
       "sha256": "e43f432b1e689bcab5fd37c6a513d4a462a5d0fdc439dc884a48e86a35ff0346"
+    },
+    {
+      "path": "nft/groth16-prover.bundle.js",
+      "sha256": "b0793c61046c2cfd201da3e794db002610352b724dae80714630bddc3e563a40"
+    },
+    {
+      "path": "nft/wasm/asset-manifest.json",
+      "sha256": "78ceb31b3405a68cc67b4f182318356922173f1d5a04ea0fa8d25ca5fbf12d8a"
+    },
+    {
+      "path": "nft/wasm/ba94adf093e933f6c44a7f3c35929f55dd46c4b91dc15b0e5662f0fa61191525/privacybtc_wasm_prover_bg.wasm",
+      "sha256": "06a3b0c2d6646151c9099b47c1a96841ccac457be6f9226447562d53c92282c7"
+    },
+    {
+      "path": "nft/wasm/ba94adf093e933f6c44a7f3c35929f55dd46c4b91dc15b0e5662f0fa61191525/privacybtc_wasm_prover.js",
+      "sha256": "43d2f7a787a8526199e3f3ad94610ce73533b7ab1c242f65c1a7bfa3e17b11ef"
+    },
+    {
+      "path": "groth16/nft_mint/nft_mint.wasm",
+      "sha256": "31f2fa5f917b539e474f4a3cb05bbb00022768c71dde6385e22d277f736b8c66"
+    },
+    {
+      "path": "groth16/nft_mint/nft_mint_final.zkey",
+      "sha256": "4746fa71dcf0d23205d8413bd06aa9984bb873824914a86b3a57e5cceee82ae9"
+    },
+    {
+      "path": "groth16/nft_mint/artifacts.sha256",
+      "sha256": "82f51cf8e874683330fd794d5b91eeb1b3866e9a2c755bca5f64450384ac282c"
+    },
+    {
+      "path": "wasm/ba94adf093e933f6c44a7f3c35929f55dd46c4b91dc15b0e5662f0fa61191525/privacybtc_wasm_prover.js",
+      "sha256": "43d2f7a787a8526199e3f3ad94610ce73533b7ab1c242f65c1a7bfa3e17b11ef"
     }
   ]
 }

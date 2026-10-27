@@ -17,6 +17,7 @@ export default defineConfig({
         content: resolve(__dirname, 'src/content.ts'),
         inpage: resolve(__dirname, 'src/inpage.ts'),
         'dex-prover': resolve(__dirname, 'src/privacy/dex-prover.worker.ts'),
+        'nft-prover': resolve(__dirname, 'src/privacy/nft-prover.worker.ts'),
         'privacy-prover': resolve(__dirname, 'src/privacy/prover.worker.ts'),
       },
       output: {

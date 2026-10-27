@@ -29,6 +29,7 @@
     "storage",
     "alarms",
     "offscreen",
+    "declarativeNetRequestWithHostAccess",
     "scripting"
   ],
   "host_permissions": [

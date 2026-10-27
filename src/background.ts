@@ -2,6 +2,10 @@ import { consentStorageKey, consentStoragePrefix, sealConsent, openConsent } fro
 import { parseIntent as parseDexIntent, amounts as dexAmounts } from './privacy/dex/protocol';
 import { journalId as dexJournalId } from './privacy/dex/journal';
 import { journalId as sponsoredJournalId } from './privacy/sponsored/journal';
+import { journalId as nftJournalId } from './privacy/nft/journal';
+import { parseMintRequest } from './privacy/nft/protocol';
+import { signNftTransaction } from './privacy/nft/signing';
+import { ensureNftTransport } from './privacy/nft/transport';
 import { api as legacyCampaignApi, legacyRequest, parseRequest as parseLegacyCampaignRequest, validateProfile as validateLegacyProfile } from './privacy/jubjub/protocol';
 import { api as sponsorApi, parseRequest as parseSponsoredRequest, validateProfile as validateSponsorProfile, campaignIntent, verifyPayment, sameIntent as sameSponsoredIntent, publicRequest as publicSponsorRequest, object as sponsorObject, type Request as SponsorRequest, type TransferResult } from './privacy/sponsored/protocol';
 import type { DexOrderSummary } from 'plabs-js-sdk';
@@ -2300,6 +2304,49 @@ const sendSponsoredPrivacyTransaction = (origin: string, input: unknown, legacy 
 });
 // Existing callers normalize into the same engine and encrypted journal.
 const fundJubjubBid = (origin: string, input: unknown) => sendSponsoredPrivacyTransaction(origin, input, true);
+const checkNftBinding = async (binding: DexBinding) => {
+  if (!binding || typeof binding.origin !== 'string' || pendingAuthorizationChanges || operationEpoch !== binding.revision) throw new RpcError(4100, 'NFT 钱包会话已变化');
+  assertDappNotCancelled(binding.origin);
+  await checkDappContext(binding.origin, binding.address, 1, binding.epoch, binding.privacy);
+};
+const nftRequest = (origin: string, method: string, input: unknown) => {
+ const work = async () => {
+  await requireApprovedOrigin(origin); const wallet = requireUnlocked(); await requirePrivacyUnlocked();
+  if (await selectedChainId() !== 1) throw new RpcError(4901, '请先切换 Ethereum 以铸造 NFT');
+  const privacy = await privacyAccountState();
+  if (!privacy.privacyAddress || !privacySessionSecret) throw new RpcError(4100, '请先解锁隐私账户');
+  const binding: DexBinding = { origin, address: wallet.address, epoch: permissionEpoch.get(origin) ?? 0, privacy: privacy.privacyAddress, revision: operationEpoch };
+  const engine = <T>(action: string, params: Record<string, unknown> = {}) => callPrivacyEngine<T>(action, { ...params, origin, account: wallet.address, binding });
+  if (method === 'plabs_getNftMints') { return privacyAccess.read(origin, 'address', () => engine('PRIVACY_NFT_LIST')); }
+  if (!(await transactionSettings()).experimentalPrivacyWrites) throw new RpcError(4200, '请先在钱包设置中开启实验性隐私操作');
+  await ensureNftTransport();
+  let pool: string, id: string | undefined;
+  if (method === 'plabs_resumeNftMint') {
+    if (typeof input !== 'string' || !/^[0-9a-f-]{36}$/i.test(input)) throw new RpcError(-32602, 'NFT mint 标识无效');
+    const records = await engine<Array<{ id: string; poolAddress: string }>>('PRIVACY_NFT_LIST');
+    const record = records.find(record => record.id === input);
+    if (!record) throw new RpcError(4100, '原 NFT mint 不属于当前网站或钱包');
+    pool = record.poolAddress; id = input;
+  } else pool = parseMintRequest(input).poolAddress;
+  await checkNftBinding(binding);
+  // Resuming a sent transaction only checks the original hash, never signs another mint.
+  const previous = await engine<Array<{ id: string; poolAddress: string; state: string; txHash?: string }>>('PRIVACY_NFT_LIST');
+  const sent = previous.find(record => record.id === id && record.txHash);
+  if (!sent) {
+    const review = await engine<{ name: string; symbol: string }>('PRIVACY_NFT_REVIEW', { pool });
+    await checkNftBinding(binding);
+    const approved = await requestApproval({ origin, kind: 'transaction', title: id ? '恢复原 NFT 铸造' : '铸造私有 NFT', details: {
+      合集: `${review.name} (${review.symbol})`, 合集地址: pool, 网络: 'Ethereum mainnet (1)', 铸造价格: '免费；需要公开 ETH 支付 Gas',
+      隐私收款地址: privacy.privacyAddress, 授权内容: '核对铸造资格并预留一枚 NFT，在钱包内生成私有 Note 和证明；最终交易与 Gas 另行确认。恢复时复用原预留及证明。',
+    } });
+    if (!approved) throw new RpcError(4001, '用户拒绝 NFT 铸造');
+  }
+  await checkNftBinding(binding);
+  if (activeDappUi?.origin === origin) activeDappUi.message = '正在准备 NFT 铸造或核对原交易，私有证明仅保留在钱包…';
+  return engine('PRIVACY_NFT_MINT', { pool, id, seedHex: privacySessionSecret!.seedHex });
+ };
+ return method === 'plabs_getNftMints' ? work() : queueTransaction(work);
+};
 const dexRequest = (origin:string, method:string, input:unknown) => queueTransaction(async()=>{
   await requireApprovedOrigin(origin); const wallet=requireUnlocked(); await requirePrivacyUnlocked();
   if(await selectedChainId()!==143)throw new RpcError(4901,'请先切换 Monad');
@@ -2365,7 +2412,7 @@ const authorizeOperation = async (operation: PreparedOperation) => {
 };
 let lastDappWalletOpen = 0;
 const interactiveDapps = new Set<string>();
-const INTERACTIVE_DAPP_METHODS = new Set(['plabs_connect', 'eth_requestAccounts', 'wallet_requestPermissions', 'personal_sign', 'wallet_switchEthereumChain', 'plabs_previewTransaction', 'plabs_getPrivacyAddress', 'plabs_provePrivacyOwnership', 'plabs_sendPrivacyTransaction', 'plabs_requestPrivacyAccess', 'plabs_importOfficialDexOrders', 'plabs_placeDexOrder', 'plabs_resumeDexOrder', 'plabs_cancelDexOrder', 'plabs_collectDexPayouts', 'plabs_fundJubjubBid', 'plabs_sendSponsoredPrivacyTransaction']);
+const INTERACTIVE_DAPP_METHODS = new Set(['plabs_connect', 'eth_requestAccounts', 'wallet_requestPermissions', 'personal_sign', 'wallet_switchEthereumChain', 'plabs_previewTransaction', 'plabs_getPrivacyAddress', 'plabs_provePrivacyOwnership', 'plabs_sendPrivacyTransaction', 'plabs_requestPrivacyAccess', 'plabs_importOfficialDexOrders', 'plabs_placeDexOrder', 'plabs_resumeDexOrder', 'plabs_cancelDexOrder', 'plabs_collectDexPayouts', 'plabs_fundJubjubBid', 'plabs_sendSponsoredPrivacyTransaction', 'plabs_mintNft', 'plabs_resumeNftMint']);
 const handleDappRequest = async (request: ProviderRequest, origin: string) => {
   if (request.method === 'plabs_connect' || request.method === 'plabs_requestPrivacyAccess') {
     const scopes = readScopes(Array.isArray(request.params) ? request.params[0] : undefined);
@@ -2378,7 +2425,7 @@ const handleDappRequest = async (request: ProviderRequest, origin: string) => {
   if (!interactive) return dispatchDappRequest(request, origin);
   if (interactiveDapps.size || isDappUiRunning(activeDappUi)) throw new RpcError(-32002, '钱包中已有待处理请求，请先处理或取消');
   interactiveDapps.add(origin);
-  const task: ActiveDappUi = { id: crypto.randomUUID(), origin, method: request.method, phase: 'unlock-wallet', requiresPrivacy: ['plabs_connect', 'plabs_getPrivacyAddress', 'plabs_provePrivacyOwnership', 'plabs_sendPrivacyTransaction', 'plabs_requestPrivacyAccess', 'plabs_importOfficialDexOrders', 'plabs_placeDexOrder', 'plabs_resumeDexOrder', 'plabs_cancelDexOrder', 'plabs_collectDexPayouts', 'plabs_fundJubjubBid', 'plabs_sendSponsoredPrivacyTransaction'].includes(request.method), canCancel: true, cancelled: false, createdAt: Date.now() };
+  const task: ActiveDappUi = { id: crypto.randomUUID(), origin, method: request.method, phase: 'unlock-wallet', requiresPrivacy: ['plabs_connect', 'plabs_getPrivacyAddress', 'plabs_provePrivacyOwnership', 'plabs_sendPrivacyTransaction', 'plabs_requestPrivacyAccess', 'plabs_importOfficialDexOrders', 'plabs_placeDexOrder', 'plabs_resumeDexOrder', 'plabs_cancelDexOrder', 'plabs_collectDexPayouts', 'plabs_fundJubjubBid', 'plabs_sendSponsoredPrivacyTransaction', 'plabs_mintNft', 'plabs_resumeNftMint'].includes(request.method), canCancel: true, cancelled: false, createdAt: Date.now() };
   activeDappUi = task;
   try {
     if (!await openWalletPopup()) throw new RpcError(4900,'无法打开钱包确认窗口。请点击浏览器工具栏的 PLabs Wallet 图标，再重试请求。');
@@ -2428,7 +2475,7 @@ const dispatchDappRequest = async (request: ProviderRequest, origin: string) => 
       return { opened: await openWalletPopup() };
     }
     case 'plabs_getCapabilities':
-      return { version: 1, methods: { personalSign: true, signTypedData: false, evmTransactions: false, evmPreview: true, privacyTransactions: true, privacyRead: true, privacyHistory: true, privacyNotes: true, dexOrders: true, dexTrading: true, unifiedConnect: true, privacyOwnership: true, jubjubBidding: true, sponsoredPrivacyTransfers: true }, networks: Object.values(NETWORKS).map(network => ({ chainId: network.chainId, name: network.name, nativeSymbol: network.nativeSymbol, pools: (network.plabs?.pools ?? []).map(pool => ({ address: pool.address, symbol: pool.symbol, decimals:pool.decimals, underlying:pool.underlying, canShield: Boolean(pool.underlying && !pool.nativeGateway), canUnshield: network.chainId === 143 && pool.symbol === 'sUSDC' })) })) };
+      return { version: 1, methods: { personalSign: true, signTypedData: false, evmTransactions: false, evmPreview: true, privacyTransactions: true, privacyRead: true, privacyHistory: true, privacyNotes: true, dexOrders: true, dexTrading: true, unifiedConnect: true, privacyOwnership: true, jubjubBidding: true, sponsoredPrivacyTransfers: true, nftMinting: true }, networks: Object.values(NETWORKS).map(network => ({ chainId: network.chainId, name: network.name, nativeSymbol: network.nativeSymbol, pools: (network.plabs?.pools ?? []).map(pool => ({ address: pool.address, symbol: pool.symbol, decimals:pool.decimals, underlying:pool.underlying, canShield: Boolean(pool.underlying && !pool.nativeGateway), canUnshield: network.chainId === 143 && pool.symbol === 'sUSDC' })) })) };
     case 'plabs_requestPrivacyAccess':
       return privacyAccess.request(origin, params[0]);
     case 'plabs_getPrivacySession': {
@@ -2446,6 +2493,7 @@ const dispatchDappRequest = async (request: ProviderRequest, origin: string) => 
     case 'plabs_getDexOrders': return dappDexOrders(origin);
     case 'plabs_fundJubjubBid': return fundJubjubBid(origin, params[0]);
     case 'plabs_sendSponsoredPrivacyTransaction': return sendSponsoredPrivacyTransaction(origin, params[0]);
+    case 'plabs_mintNft': case 'plabs_resumeNftMint': case 'plabs_getNftMints': return nftRequest(origin, request.method, params[0]);
     case 'plabs_placeDexOrder': case 'plabs_resumeDexOrder': case 'plabs_cancelDexOrder': case 'plabs_collectDexPayouts': return dexRequest(origin,request.method,params[0]);
     case 'plabs_importOfficialDexOrders': return importOfficialDexOrders(origin);
     case 'plabs_getBalances': return dappPortfolio(origin);
@@ -2502,15 +2550,29 @@ const dispatchRuntimeMessage = async (message: Record<string, unknown>, sender: 
   const pageUrl = sender.url ? new URL(sender.url) : null;
   const isExtensionPage = sender.id === chrome.runtime.id && pageUrl?.protocol === 'chrome-extension:' && pageUrl.host === chrome.runtime.id &&
     ['/popup.html', '/approval.html'].includes(pageUrl.pathname);
-  if (['GET_DEX_JOURNAL', 'SAVE_DEX_JOURNAL', 'GET_JUBJUB_JOURNAL', 'SAVE_JUBJUB_JOURNAL', 'GET_SPONSORED_JOURNAL', 'SAVE_SPONSORED_JOURNAL'].includes(String(message.action)) && sender.id === chrome.runtime.id && pageUrl?.protocol === 'chrome-extension:' && pageUrl.host === chrome.runtime.id && pageUrl.pathname === '/offscreen.html') {
+  if (['GET_NFT_JOURNAL', 'SAVE_NFT_JOURNAL', 'GET_DEX_JOURNAL', 'SAVE_DEX_JOURNAL', 'GET_JUBJUB_JOURNAL', 'SAVE_JUBJUB_JOURNAL', 'GET_SPONSORED_JOURNAL', 'SAVE_SPONSORED_JOURNAL'].includes(String(message.action)) && sender.id === chrome.runtime.id && pageUrl?.protocol === 'chrome-extension:' && pageUrl.host === chrome.runtime.id && pageUrl.pathname === '/offscreen.html') {
     await requirePrivacyUnlocked();
     const account = await privacyAccountFor(requireUnlocked().address);
     if (!account || `0x${account.rawAddressHex.replace(/^0x/i, '').toLowerCase()}` !== message.privacyAddress) throw new Error('PEX 恢复记录不属于当前隐私账户');
-    const id = String(message.action).includes('DEX') ? dexJournalId(String(message.privacyAddress)) : sponsoredJournalId(String(message.privacyAddress));
-    if (message.action === 'GET_DEX_JOURNAL' || message.action === 'GET_JUBJUB_JOURNAL' || message.action === 'GET_SPONSORED_JOURNAL') return (await localGet(id)) ?? null;
+    const id = String(message.action).includes('NFT') ? nftJournalId(String(message.privacyAddress)) : String(message.action).includes('DEX') ? dexJournalId(String(message.privacyAddress)) : sponsoredJournalId(String(message.privacyAddress));
+    if (String(message.action).startsWith('GET_')) return (await localGet(id)) ?? null;
     const box = message.box as { schema: number; nonce: string; ciphertext: string };
     if (!box || box.schema !== 1 || typeof box.nonce !== 'string' || box.nonce.length !== 16 || typeof box.ciphertext !== 'string' || box.ciphertext.length > 8_000_000) throw new Error('PEX 加密记录无效或过大');
     await localSet({ [id]: box }); return true;
+  }
+  if (['GET_NFT_CONTEXT_VALID', 'SIGN_NFT_TRANSACTION'].includes(String(message.action)) && sender.id === chrome.runtime.id && pageUrl?.protocol === 'chrome-extension:' && pageUrl.host === chrome.runtime.id && pageUrl.pathname === '/offscreen.html') {
+    const binding = message.binding as DexBinding;
+    await checkNftBinding(binding);
+    if (message.action === 'GET_NFT_CONTEXT_VALID') return true;
+    if (!(await transactionSettings()).experimentalPrivacyWrites) throw new RpcError(4200, '实验性隐私操作已关闭');
+    const wallet = requireUnlocked(), provider = await getProvider(1);
+    return signNftTransaction(message.transaction, {
+      account: wallet.address, signer: wallet.connect(provider), provider, guard: () => checkNftBinding(binding),
+      approve: async details => {
+        const approved = await requestApproval({ origin: binding.origin, kind: 'transaction', title: '确认 NFT mint 与 ETH Gas', details });
+        if (!approved) throw new RpcError(4001, '用户拒绝 NFT 铸造交易');
+      },
+    });
   }
   if(['GET_DEX_CONTEXT_VALID', 'GET_JUBJUB_CONTEXT_VALID', 'GET_SPONSORED_CONTEXT_VALID'].includes(String(message.action)) && sender.id===chrome.runtime.id && pageUrl?.host===chrome.runtime.id && pageUrl.pathname==='/offscreen.html'){
     const binding=message.binding as DexBinding;
@@ -2676,6 +2738,12 @@ const dispatchRuntimeMessage = async (message: Record<string, unknown>, sender: 
       const chainId = Number(message.chainId);
       if (!isSupportedChainId(chainId)) throw new Error('不支持的网络');
       return addVisiblePrivacyPool(chainId, message.poolAddress);
+    }
+    case 'GET_PRIVATE_NFT_ASSETS':
+    case 'SYNC_PRIVATE_NFT_ASSETS': {
+      const wallet = requireUnlocked(); await requirePrivacyUnlocked();
+      if (await selectedChainId() !== 1) throw new RpcError(4901, '隐私 NFT 目前部署在 Ethereum，请先切换网络');
+      return callPrivacyEngine(message.action === 'SYNC_PRIVATE_NFT_ASSETS' ? 'PRIVACY_NFT_SYNC' : 'PRIVACY_NFT_ASSETS', { account: wallet.address });
     }
     case 'GET_PRIVACY_STATE':
       return privacyAccountState();
