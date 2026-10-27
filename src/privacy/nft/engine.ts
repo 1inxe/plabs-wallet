@@ -32,6 +32,7 @@ export interface NftPorts {
   rpc(method: string, params: unknown[]): Promise<unknown>;
   sign(transaction: Json): Promise<unknown>;
   broadcast(raw: string): Promise<unknown>;
+  indexer?(path: string): Promise<unknown>;
   scan(notes: Json[]): Promise<Array<{ note: Json; nullifier: string }>>;
 }
 export class NftMintEngine {

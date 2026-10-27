@@ -17,8 +17,9 @@ export type NftAssetSummary = {
   blockNumber: number;
   state: 'confirmed' | 'pending';
   source: 'chain' | 'mint';
+  transfer?: { id: string; recipient: string; state: string; txHash?: string; message?: string };
 };
-export function publicNftAssets(journal: MintJournal) {
+export function publicNftAssets(journal: MintJournal, includeTransfers = false) {
   const scanned = journal.holdings ?? [];
   const items: NftAssetSummary[] = scanned
     .filter((note) => !note.spent)
@@ -54,6 +55,13 @@ export function publicNftAssets(journal: MintJournal) {
       source: 'mint',
     });
   }
+  if (includeTransfers) for (const item of items) {
+    const transfer = [...(journal.transfers ?? [])].reverse().find(record => record.assetId === item.id && record.state !== 'failed');
+    if (transfer && transfer.state !== 'confirmed') item.transfer = {
+      id: transfer.id, recipient: transfer.recipient, state: transfer.state,
+      txHash: transfer.txHash, message: transfer.message,
+    };
+  }
   return {
     items,
     syncedAt: journal.syncedAt ?? null,
@@ -75,9 +83,9 @@ export class NftAssetSync {
     const data = await this.p.rpc('eth_call', [{ to, data: encoded }, `0x${block.toString(16)}`]);
     return nftInterface.decodeFunctionResult(method, String(data));
   }
-  async snapshot() {
+  async snapshot(includeTransfers = false) {
     await this.p.guard();
-    return publicNftAssets(await this.p.load());
+    return publicNftAssets(await this.p.load(), includeTransfers);
   }
   private async firstBlock(pool: string, target: number) {
     const code = (block: number) => this.p.rpc('eth_getCode', [pool, `0x${block.toString(16)}`]);
@@ -92,7 +100,7 @@ export class NftAssetSync {
     }
     return low;
   }
-  async sync() {
+  async sync(includeTransfers = false) {
     await this.p.guard();
     const journal = await this.p.load();
     journal.holdings ??= [];
@@ -276,6 +284,6 @@ export class NftAssetSync {
       journal.syncProgress = undefined;
     }
     await this.save(journal);
-    return publicNftAssets(journal);
+    return publicNftAssets(journal, includeTransfers);
   }
 }

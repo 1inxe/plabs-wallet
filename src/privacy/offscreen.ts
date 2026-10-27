@@ -1,3 +1,4 @@
+import { NftTransferEngine } from './nft/transfer';
 import { readJsonResponse } from '../shared/network-response';
 import { DEFAULT_MERGE_BATCH_SIZE, MERGE_WALLET_MAX_INPUTS, validMergeBatchSize } from './merge-settings';
 import { feeGatewayInterface, relayerInputLimit } from './fees';
@@ -38,7 +39,7 @@ import { journalId as nftJournalId, open as openNftJournal, seal as sealNftJourn
 import { NftAssetSync } from './nft/holdings';
 
 const proverClient = createProverClient(() => new Worker(chrome.runtime.getURL('privacy-prover.js'), { type: 'module' }));
-const nftProver = createProverClient(() => new Worker(chrome.runtime.getURL('nft-prover.js'), { type: 'module' }), method => method === 'nft_mint_prove' ? 600_000 : 120_000);
+const nftProver = createProverClient(() => new Worker(chrome.runtime.getURL('nft-prover.js'), { type: 'module' }), method => ['nft_mint_prove','prove_note'].includes(method) ? 600_000 : 120_000);
 const dexProver = new Worker(chrome.runtime.getURL('dex-prover.js'), { type: 'module' });
 const dexPending = new Map<number, { resolve: (value: unknown) => void; reject: (error: Error) => void }>();
 dexProver.onmessage = event => {
@@ -131,13 +132,13 @@ const queueNft = (work: () => Promise<unknown>) => {
   const run = async () => { nftActive++; try { return await work(); } finally { nftActive--; } };
   const result = nftQueue.then(run, run); nftQueue = result.catch(() => {}); return result;
 };
-const nftContext = (account: string, binding?: unknown) => {
+const nftContext = (account: string, binding?: unknown, transfer = false) => {
   const active = session;
   if (!active) throw new Error('隐私账户未解锁');
   const guard = async () => {
     if (session !== active) throw new Error('隐私会话已变化，NFT 请求已停止');
     if (binding) {
-      const response = await chrome.runtime.sendMessage({ action: 'GET_NFT_CONTEXT_VALID', binding });
+      const response = await chrome.runtime.sendMessage({ action: transfer ? 'GET_NFT_TRANSFER_CONTEXT' : 'GET_NFT_CONTEXT_VALID', binding });
       if (!response?.ok) throw new Error(response?.error?.message ?? 'NFT 钱包会话已变化');
     }
     if (session !== active) throw new Error('隐私会话已变化，NFT 请求已停止');
@@ -154,6 +155,12 @@ const nftContext = (account: string, binding?: unknown) => {
       await guard(); const box = await sealNftJournal(journal, id, active.stateKey); await guard();
       const response = await chrome.runtime.sendMessage({ action: 'SAVE_NFT_JOURNAL', privacyAddress: active.privacyAddress, box });
       if (!response?.ok) throw new Error(response?.error?.message ?? 'NFT 恢复记录保存失败'); await guard();
+    },
+    indexer: async path => {
+      if(!/^\/(merkle_path\?pool=0x[0-9a-f]{40}&cmx=[0-9a-f]{64}|frozen_leaves\?pool=0x[0-9a-f]{40})$/.test(path))throw new Error('NFT 索引路径不允许');
+      await guard(); const response=await fetch(`https://eth-indexer.plabs.online${path}`,{credentials:'omit',redirect:'error',cache:'no-store',signal:AbortSignal.timeout(20_000)});
+      if(!response.ok)throw new Error(`NFT 证明路径服务尚未就绪 (HTTP ${response.status})`);
+      const result=await readJsonResponse(response,8_000_000);await guard();return result;
     },
     api: async (path, body) => {
       if (!/^\/(?:pool\/0x[0-9a-f]{40}(?:\?wallet=0x[0-9a-f]{64})?|reserve|jobs\/[a-zA-Z0-9_-]{1,160}(?:\/permit)?)$/.test(path)) throw new Error('NFT 服务路径不允许');
@@ -181,7 +188,7 @@ const nftContext = (account: string, binding?: unknown) => {
     },
     sign: async transaction => {
       await guard(); if (!binding) throw new Error('NFT 交易缺少网站授权上下文');
-      const response = await chrome.runtime.sendMessage({ action: 'SIGN_NFT_TRANSACTION', binding, transaction });
+      const response = await chrome.runtime.sendMessage({ action: transfer ? 'SIGN_NFT_TRANSFER_TRANSACTION' : 'SIGN_NFT_TRANSACTION', binding, transaction });
       if (!response?.ok) throw new Error(response?.error?.message ?? 'NFT 交易签名未完成'); await guard(); return response.result;
     },
     broadcast: async raw => {
@@ -1345,18 +1352,20 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       const active = session;
       const run = async () => {
         if (!active || session !== active) throw new Error('隐私会话已变化');
-        const { engine } = nftContext(message.account, message.binding);
+        const { engine, ports } = nftContext(message.account, message.binding, ['PRIVACY_NFT_SEND','PRIVACY_NFT_TRANSFER_STATUS'].includes(message.action));
+        if(message.action === 'PRIVACY_NFT_SEND')return new NftTransferEngine(ports,message.account).send(message.assetId,message.recipient,message.seedHex);
+        if(message.action === 'PRIVACY_NFT_TRANSFER_STATUS')return new NftTransferEngine(ports,message.account).status(message.id);
         if (message.action === 'PRIVACY_NFT_REVIEW') return engine.review(message.pool);
         if (message.action === 'PRIVACY_NFT_LIST') return engine.list(message.origin);
         if (message.action === 'PRIVACY_NFT_MINT') return engine.mint(message.origin, message.pool, message.seedHex, message.id);
         throw new Error('未知 NFT 方法');
       };
-      if (message.action === 'PRIVACY_NFT_ASSETS') return nftContext(message.account, message.binding).assets.snapshot();
+      if (message.action === 'PRIVACY_NFT_ASSETS') return nftContext(message.account, message.binding).assets.snapshot(message.includeTransfers === true);
       if (message.action === 'PRIVACY_NFT_LIST' && nftActive > 0) return nftContext(message.account, message.binding).engine.list(message.origin, false);
       if (message.action === 'PRIVACY_NFT_SYNC') {
         const sync = async () => {
           if (!active || session !== active) throw new Error('隐私会话已变化');
-          return nftContext(message.account, message.binding).assets.sync();
+          return nftContext(message.account, message.binding).assets.sync(message.includeTransfers === true);
         };
         return queueNft(sync);
       }

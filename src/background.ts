@@ -4,7 +4,7 @@ import { journalId as dexJournalId } from './privacy/dex/journal';
 import { journalId as sponsoredJournalId } from './privacy/sponsored/journal';
 import { journalId as nftJournalId } from './privacy/nft/journal';
 import { parseMintRequest } from './privacy/nft/protocol';
-import { signNftTransaction } from './privacy/nft/signing';
+import { signNftTransaction, signNftTransferTransaction } from './privacy/nft/signing';
 import { ensureNftTransport } from './privacy/nft/transport';
 import { api as legacyCampaignApi, legacyRequest, parseRequest as parseLegacyCampaignRequest, validateProfile as validateLegacyProfile } from './privacy/jubjub/protocol';
 import { api as sponsorApi, parseRequest as parseSponsoredRequest, validateProfile as validateSponsorProfile, campaignIntent, verifyPayment, sameIntent as sameSponsoredIntent, publicRequest as publicSponsorRequest, object as sponsorObject, type Request as SponsorRequest, type TransferResult } from './privacy/sponsored/protocol';
@@ -2304,6 +2304,12 @@ const sendSponsoredPrivacyTransaction = (origin: string, input: unknown, legacy 
 });
 // Existing callers normalize into the same engine and encrypted journal.
 const fundJubjubBid = (origin: string, input: unknown) => sendSponsoredPrivacyTransaction(origin, input, true);
+type NftTransferBinding = {address:string; privacy:string; revision:number};
+const checkNftTransferBinding = async (binding:NftTransferBinding) => {
+  if(!binding || pendingAuthorizationChanges || binding.revision!==operationEpoch || requireUnlocked().address!==binding.address || await selectedChainId()!==1)throw new RpcError(4100,'NFT 发送会话已变化');
+  await requirePrivacyUnlocked();
+  if((await privacyAccountState()).privacyAddress!==binding.privacy || binding.revision!==operationEpoch)throw new RpcError(4100,'NFT 隐私账户已变化');
+};
 const checkNftBinding = async (binding: DexBinding) => {
   if (!binding || typeof binding.origin !== 'string' || pendingAuthorizationChanges || operationEpoch !== binding.revision) throw new RpcError(4100, 'NFT 钱包会话已变化');
   assertDappNotCancelled(binding.origin);
@@ -2570,6 +2576,16 @@ const dispatchRuntimeMessage = async (message: Record<string, unknown>, sender: 
     if (!box || box.schema !== 1 || typeof box.nonce !== 'string' || box.nonce.length !== 16 || typeof box.ciphertext !== 'string' || box.ciphertext.length > 8_000_000) throw new Error('PEX 加密记录无效或过大');
     await localSet({ [id]: box }); return true;
   }
+  if (['GET_NFT_TRANSFER_CONTEXT','SIGN_NFT_TRANSFER_TRANSACTION'].includes(String(message.action)) && sender.id===chrome.runtime.id && pageUrl?.protocol==='chrome-extension:' && pageUrl.host===chrome.runtime.id && pageUrl.pathname==='/offscreen.html') {
+    const binding=message.binding as NftTransferBinding;await checkNftTransferBinding(binding);
+    if(message.action==='GET_NFT_TRANSFER_CONTEXT')return true;
+    if(!(await transactionSettings()).experimentalPrivacyWrites)throw new RpcError(4200,'请先开启实验性隐私操作');
+    const wallet=requireUnlocked(),provider=await getProvider(1);
+    return signNftTransferTransaction(message.transaction,{account:wallet.address,signer:wallet.connect(provider),provider,guard:()=>checkNftTransferBinding(binding),approve:async details=>{
+      const approved=await requestApproval({origin:chrome.runtime.getURL('popup.html'),kind:'transaction',title:'确认发送 NFT 与 ETH Gas',details});
+      if(!approved)throw new RpcError(4001,'用户取消 NFT 发送');
+    }});
+  }
   if (['GET_NFT_CONTEXT_VALID', 'SIGN_NFT_TRANSACTION'].includes(String(message.action)) && sender.id === chrome.runtime.id && pageUrl?.protocol === 'chrome-extension:' && pageUrl.host === chrome.runtime.id && pageUrl.pathname === '/offscreen.html') {
     const binding = message.binding as DexBinding;
     await checkNftBinding(binding);
@@ -2749,11 +2765,27 @@ const dispatchRuntimeMessage = async (message: Record<string, unknown>, sender: 
       if (!isSupportedChainId(chainId)) throw new Error('不支持的网络');
       return addVisiblePrivacyPool(chainId, message.poolAddress);
     }
+    case 'SEND_PRIVATE_NFT':
+    case 'GET_PRIVATE_NFT_TRANSFER': {
+      return queueTransaction(async()=>{
+        const wallet=requireUnlocked();await requirePrivacyUnlocked();
+        const privacy=await privacyAccountState();
+        if(!privacy.privacyAddress || !privacySessionSecret)throw new RpcError(4100,'请先解锁隐私账户');
+        const binding:NftTransferBinding={address:wallet.address,privacy:privacy.privacyAddress,revision:operationEpoch};await checkNftTransferBinding(binding);
+        if(message.action==='SEND_PRIVATE_NFT' && !(await transactionSettings()).experimentalPrivacyWrites)throw new RpcError(4200,'请先在设置中开启实验性隐私操作');
+        if(message.action==='GET_PRIVATE_NFT_TRANSFER')return callPrivacyEngine('PRIVACY_NFT_TRANSFER_STATUS',{account:wallet.address,binding,id:message.id});
+        if(isDappUiRunning(activeDappUi))throw new RpcError(-32002,'钱包已有待处理请求，请先处理或取消');
+        const task:ActiveDappUi={id:crypto.randomUUID(),origin:chrome.runtime.getURL('popup.html'),method:'wallet_sendPrivateNft',phase:'processing',requiresPrivacy:true,privacyExists:true,privacyUnlocked:true,canCancel:false,cancelled:false,createdAt:Date.now(),message:'正在为 NFT 生成隐私转移证明…'};
+        activeDappUi=task;void updateApprovalAction().catch(()=>{});
+        try{return await callPrivacyEngine('PRIVACY_NFT_SEND',{account:wallet.address,binding,assetId:message.assetId,recipient:message.recipient,seedHex:privacySessionSecret.seedHex});}
+        finally{if(activeDappUi===task)activeDappUi=null;void updateApprovalAction().catch(()=>{});}
+      });
+    }
     case 'GET_PRIVATE_NFT_ASSETS':
     case 'SYNC_PRIVATE_NFT_ASSETS': {
       const wallet = requireUnlocked(); await requirePrivacyUnlocked();
       if (await selectedChainId() !== 1) throw new RpcError(4901, '隐私 NFT 目前部署在 Ethereum，请先切换网络');
-      return callPrivacyEngine(message.action === 'SYNC_PRIVATE_NFT_ASSETS' ? 'PRIVACY_NFT_SYNC' : 'PRIVACY_NFT_ASSETS', { account: wallet.address });
+      return callPrivacyEngine(message.action === 'SYNC_PRIVATE_NFT_ASSETS' ? 'PRIVACY_NFT_SYNC' : 'PRIVACY_NFT_ASSETS', { account: wallet.address, includeTransfers: true });
     }
     case 'GET_PRIVACY_STATE':
       return privacyAccountState();

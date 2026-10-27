@@ -124,3 +124,8 @@ export function ActivitySection({ chainId, poolAddress, symbol, hidden = false }
     {selected && <ActivityDetail id={selected} chainId={chainId} hidden={hidden} onBack={() => setSelected(null)} />}
   </section>;
 }
+
+export function ActivityHistoryButton({chainId,hidden=false}:{chainId:ChainId;hidden?:boolean}) {
+  const [open,setOpen]=useState(false);
+  return <><button className="activity-history-button" onClick={()=>setOpen(true)}><History size={14}/>最近活动<ArrowRight size={13}/></button>{open && <HistoryPage chainId={chainId} hidden={hidden} onClose={()=>setOpen(false)}/>}</>;
+}

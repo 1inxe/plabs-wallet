@@ -1,3 +1,4 @@
+import type { NftTransfer } from './transfer';
 import type { NftMintResult } from 'plabs-js-sdk';
 import { base64ToBytes, bytesToBase64 } from '../../shared/encoding';
 import type { Json, MintNote } from './protocol';
@@ -47,6 +48,7 @@ export type MintJournal = {
   schema: 1;
   records: MintRecord[];
   holdings?: NftHolding[];
+  transfers?: NftTransfer[];
   pools?: Record<string, NftCursor>;
   syncedAt?: number;
   syncComplete?: boolean;
@@ -85,6 +87,8 @@ export async function open(value: unknown, id: string, key: CryptoKey): Promise<
     throw new Error('NFT 恢复记录损坏');
   if (journal.holdings && (!Array.isArray(journal.holdings) || journal.holdings.length > 4096))
     throw new Error('NFT 资产记录损坏');
+  if (journal.transfers && (!Array.isArray(journal.transfers) || journal.transfers.length > 4096))
+    throw new Error('NFT 发送记录损坏');
   return journal;
 }
 export function publicMint(record: MintRecord): NftMintResult {

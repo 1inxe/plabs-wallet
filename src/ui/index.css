@@ -477,3 +477,45 @@ html:has(#root:not([hidden]) .connected-site-bar):not(:has(#root .flow-page)) .w
 .private-nft-assets > p { margin-top: 10px; }
 
 .private-nft-error { color: #ffabb3; background: #24161a; border: 1px solid #563037; border-radius: 8px; padding: 10px; font-size: 11px; }
+
+.wallet-assets { display: grid; gap: 10px; }
+.wallet-assets-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 4px 2px; }
+.wallet-assets-heading > h2 { color: #e0e2ea; font-size: 14px; }
+.wallet-asset-tabs { display: flex; gap: 3px; padding: 3px; border: 1px solid #3c4a424d; border-radius: 10px; background: #181c21; }
+.wallet-asset-tabs > button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-width: 76px; height: 32px; padding: 0 12px; border-radius: 7px; color: #929fa7; font-size: 12px; }
+.wallet-asset-tabs > button[data-state='active'] { color: #4edea3; background: #4edea317; box-shadow: inset 0 0 0 1px #4edea326; }
+.wallet-asset-content { display: flex; flex-direction: column; gap: 12px; outline: none; }
+.wallet-asset-content[data-state='inactive'] { display: none; }
+.private-nft-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; margin-top: 16px; }
+.private-nft-grid:empty { display: none; }
+.private-nft-card { min-width: 0; overflow: hidden; border-radius: 10px; background: #11161c; border: 1px solid #3c4a424d; }
+.private-nft-art { position: relative; aspect-ratio: 1; background: #1d282b; }
+.private-nft-art > img, .nft-detail-art > img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.nft-art-open { position: absolute; inset: 0; width: 100%; background: transparent; }
+.nft-art-open:hover { background: #4edea30a; }
+.nft-art-placeholder { height: 100%; min-height: 120px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; color: #8a9c9c; background: radial-gradient(ellipse at 50% 30%,#254739,#172026 75%); }
+.nft-art-placeholder > span { font-size: 10px; }
+.nft-art-placeholder > button { position: relative; z-index: 2; display: inline-flex; align-items: center; gap: 4px; color: #4edea3; font-size: 10px; padding: 4px; }
+.private-nft-copy { display: flex; flex-direction: column; text-align: left; width: 100%; gap: 7px; padding: 11px; }
+.private-nft-copy > strong { font-size: 11px; line-height: 16px; overflow-wrap: anywhere; }
+.private-nft-copy > span { display: flex; justify-content: space-between; gap: 5px; align-items: center; width: 100%; color: #c4d5ce; font: 10px 'JetBrains Mono',monospace; }
+.private-nft-copy small { color: #74b899; font-size: 9px; white-space: nowrap; }
+.nft-pending-badge { position: absolute; left: 8px; top: 8px; pointer-events: none; padding: 2px 6px; border-radius: 5px; color: #f1c47a; background: #101419d9; font-size: 9px; }
+.nft-detail-art { width: 100%; aspect-ratio: 1; border: 1px solid #3c4a424d; border-radius: 12px; overflow: hidden; }
+.wallet-asset-tabs > button { flex: 1; }
+.compact-address-card { padding: 2px 10px; margin: 0 8px 8px; border-radius: 9px; background: #11161a; }
+.compact-address-card .address-row { min-height: 40px; gap: 8px; padding: 5px 0; }
+.compact-address-card .address-tag { font-size: 9px; min-width: 30px; padding: 3px; }
+.compact-address-card .address-row .micro { font-size: 10px; }
+.compact-address-card .tiny-badge { font-size: 8px; padding: 1px 4px; }
+.compact-address-card .address-actions { gap: 1px; margin-left: auto; }
+.compact-address-card .address-actions button { width: 26px; height: 26px; padding: 4px; }
+.sync-summary { display: flex; align-items: center; gap: 8px; padding: 0 4px; color: #8c9ba8; font-size: 10px; min-height: 32px; }
+.sync-summary > span[role='status'] { white-space: nowrap; }
+.sync-summary > .sync-progress { flex: 1; margin: 0; }
+.sync-summary > button:first-of-type { margin-left: auto; }
+.sync-summary .text-toggle { font-size: 9px; }
+.overview-history { display: flex; justify-content: flex-end; margin-top: 10px; }
+.activity-history-button { display: inline-flex; align-items: center; gap: 5px; color: #90b7a5; font-size: 10px; padding: 4px 0 4px 8px; }
+.nft-send-form { display: grid; gap: 12px; }
+.nft-send-form textarea { width: 100%; min-height: 80px; resize: vertical; border: 1px solid #34433d; border-radius: 8px; background: #11161c; color: #d4e0dc; padding: 10px; font-size: 12px; overflow-wrap: anywhere; }
