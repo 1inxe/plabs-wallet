@@ -90,3 +90,5 @@ Mint proofs, reservations and private NFT Notes are encrypted with the existing 
 Rebuild and reload the extension, then refresh connected pages to discover `nftMinting`. The narrow `plabs_mintNft`, `plabs_getNftMints`, and `plabs_resumeNftMint` APIs do not enable arbitrary `eth_sendTransaction`. Both repositories use the published SDK 0.3.0 NFT request/result types and methods.
 
 Verification: `node --test tests/nft-mint.test.mjs`; after `pnpm build`, run `node tests/nft-prover-browser.mjs` for a real local Groth16 proof and Note scan using a synthetic seed, and `node tests/nft-wallet-ui-browser.mjs` for the NFT section at 370/420 px. Browser tests reuse an installed Playwright/Chrome; set `NFT_PLAYWRIGHT_PATH` and `NFT_BROWSER_PATH` when needed. These tests do not mint a real NFT or spend mainnet funds.
+
+Connected dApps can use SDK 0.3.1 `privacy.getNftAssets()` (or `{ sync: true }`) after separate `nfts` consent. Existing address/notes access does not share NFT holdings. Account changes and revocation discard in-flight results.

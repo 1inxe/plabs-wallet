@@ -28,7 +28,7 @@ export interface ReadConsent {
   chainIds: string[];
   scopes: PrivacyReadScope[];
 }
-const scopeNames: PrivacyReadScope[] = ['address', 'balances', 'history', 'notes', 'dexOrders'];
+const scopeNames: PrivacyReadScope[] = ['address', 'balances', 'history', 'notes', 'dexOrders', 'nfts'];
 export function readScopes(input: unknown): PrivacyReadScope[] {
   if (
     !input ||
@@ -41,7 +41,7 @@ export function readScopes(input: unknown): PrivacyReadScope[] {
   if (
     !Array.isArray(scopes) ||
     !scopes.length ||
-    scopes.length > 5 ||
+    scopes.length > scopeNames.length ||
     scopes.some((s) => !scopeNames.includes(s))
   )
     throw new PrivacyAccessError(-32602, '不支持的隐私读取权限');

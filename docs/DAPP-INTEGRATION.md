@@ -28,7 +28,7 @@ if (!wallet) throw new Error('请安装 PLabs Wallet');
 await wallet.connect({ privacyScopes: ['address', 'balances', 'history'] });
 ```
 
-`wallet.connect()` 仅请求公开账户；传入 `privacyScopes` 可在同一次确认中请求隐私读权限。支持的范围为 `address`、`balances`、`history`、`notes`、`dexOrders`。只请求业务需要的范围。
+`wallet.connect()` 仅请求公开账户；传入 `privacyScopes` 可在同一次确认中请求隐私读权限。支持的范围为 `address`、`balances`、`history`、`notes`、`dexOrders`、`nfts`。只请求业务需要的范围。
 
 隐私授权绑定网站 origin、账户、隐私身份和批准的网络。锁定后停止读取；再次解锁时可从加密保存的授权恢复会话。撤销读取权限或断开连接会删除记住的授权。读取权限不包含交易、签名、私钥、原始 Notes 或订单控制凭证。
 
@@ -133,3 +133,10 @@ Run `node --experimental-transform-types --test tests/privacy-ownership.test.mjs
 ## Sponsored private transfers
 
 Use the protocol-level `plabs_sendSponsoredPrivacyTransaction` capability for custody services that implement `plabs-custody-v1`. See [the sponsored-transfer contract](./SPONSORED-PRIVACY-TRANSFERS.md) for approved scopes, independent wallet authentication, amount/memo binding, and recovery. The original JubJub RPC remains a compatibility adapter over the same engine and journal.
+
+
+## NFT 持仓读取（SDK 0.3.1）
+
+检查 `capabilities.methods.nftAssets` 后，调用 `privacy.requestAccess(['nfts'])` 请求独立授权。
+`privacy.getNftAssets()` 返回当前隐私账户的缓存持仓；`privacy.getNftAssets({sync:true})` 在扩展内扫描链上收款与已花费 Note 后返回快照。
+此权限不会被旧的 address/notes 授权隐式授予。返回值仅包含合集、token ID、公开交易哈希及状态，不含 Note 开口、查看密钥或签名；同步不进入交易审批或广播队列。读取期间账户、网络、隐私会话变化或权限撤销时，结果会被丢弃。

@@ -2036,7 +2036,7 @@ const revokeReadConsents = (origin: string) => queueConsent(async () => {
 const consentDetails = (context: ReadContext, scopes: PrivacyReadScope[]) => ({
   网站: context.origin, 公网账户: context.account, 隐私地址: context.privacyAddress,
   授权网络: Object.values(NETWORKS).map(network => network.name).join('、'),
-  读取内容: scopes.map(scope => ({ address:'隐私收款地址', balances:'公网与隐私余额、可花费金额', history:'钱包交易记录', notes:'Notes 金额与状态摘要', dexOrders:'PEX 订单状态' })[scope]).join('、'),
+  读取内容: scopes.map(scope => ({ address:'隐私收款地址', balances:'公网与隐私余额、可花费金额', history:'钱包交易记录', notes:'Notes 金额与状态摘要', dexOrders:'PEX 订单状态', nfts:'隐私 NFT 合集、编号与持有状态' })[scope]).join('、'),
   有效期: '记住此网站与当前账户的读取授权，直到你撤销。钱包锁定时暂停读取，解锁后恢复。切换隐私身份需重新授权。',
   确认说明: '网站会看到所列地址、余额和历史的关联。此授权不共享 Seed、查看密钥、原始 Notes、交易签名或订单密钥。每笔资金操作仍单独确认。',
 });
@@ -2317,6 +2317,16 @@ const nftRequest = (origin: string, method: string, input: unknown) => {
   if (!privacy.privacyAddress || !privacySessionSecret) throw new RpcError(4100, '请先解锁隐私账户');
   const binding: DexBinding = { origin, address: wallet.address, epoch: permissionEpoch.get(origin) ?? 0, privacy: privacy.privacyAddress, revision: operationEpoch };
   const engine = <T>(action: string, params: Record<string, unknown> = {}) => callPrivacyEngine<T>(action, { ...params, origin, account: wallet.address, binding });
+  if (method === 'plabs_getNftAssets') {
+    const options = input ?? {};
+    if (!options || typeof options !== 'object' || Array.isArray(options) || Object.keys(options).some(key => key !== 'sync') || ((options as { sync?: unknown }).sync !== undefined && typeof (options as { sync?: unknown }).sync !== 'boolean')) throw new RpcError(-32602, 'NFT 读取参数无效');
+    return privacyAccess.read(origin, 'nfts', async () => {
+      await checkNftBinding(binding);
+      const result = await engine((options as { sync?: boolean }).sync ? 'PRIVACY_NFT_SYNC' : 'PRIVACY_NFT_ASSETS');
+      await checkNftBinding(binding);
+      return result;
+    });
+  }
   if (method === 'plabs_getNftMints') { return privacyAccess.read(origin, 'address', () => engine('PRIVACY_NFT_LIST')); }
   if (!(await transactionSettings()).experimentalPrivacyWrites) throw new RpcError(4200, '请先在钱包设置中开启实验性隐私操作');
   await ensureNftTransport();
@@ -2345,7 +2355,7 @@ const nftRequest = (origin: string, method: string, input: unknown) => {
   if (activeDappUi?.origin === origin) activeDappUi.message = '正在准备 NFT 铸造或核对原交易，私有证明仅保留在钱包…';
   return engine('PRIVACY_NFT_MINT', { pool, id, seedHex: privacySessionSecret!.seedHex });
  };
- return method === 'plabs_getNftMints' ? work() : queueTransaction(work);
+ return ['plabs_getNftMints', 'plabs_getNftAssets'].includes(method) ? work() : queueTransaction(work);
 };
 const dexRequest = (origin:string, method:string, input:unknown) => queueTransaction(async()=>{
   await requireApprovedOrigin(origin); const wallet=requireUnlocked(); await requirePrivacyUnlocked();
@@ -2475,7 +2485,7 @@ const dispatchDappRequest = async (request: ProviderRequest, origin: string) => 
       return { opened: await openWalletPopup() };
     }
     case 'plabs_getCapabilities':
-      return { version: 1, methods: { personalSign: true, signTypedData: false, evmTransactions: false, evmPreview: true, privacyTransactions: true, privacyRead: true, privacyHistory: true, privacyNotes: true, dexOrders: true, dexTrading: true, unifiedConnect: true, privacyOwnership: true, jubjubBidding: true, sponsoredPrivacyTransfers: true, nftMinting: true }, networks: Object.values(NETWORKS).map(network => ({ chainId: network.chainId, name: network.name, nativeSymbol: network.nativeSymbol, pools: (network.plabs?.pools ?? []).map(pool => ({ address: pool.address, symbol: pool.symbol, decimals:pool.decimals, underlying:pool.underlying, canShield: Boolean(pool.underlying && !pool.nativeGateway), canUnshield: network.chainId === 143 && pool.symbol === 'sUSDC' })) })) };
+      return { version: 1, methods: { personalSign: true, signTypedData: false, evmTransactions: false, evmPreview: true, privacyTransactions: true, privacyRead: true, privacyHistory: true, privacyNotes: true, dexOrders: true, dexTrading: true, unifiedConnect: true, privacyOwnership: true, jubjubBidding: true, sponsoredPrivacyTransfers: true, nftMinting: true, nftAssets: true }, networks: Object.values(NETWORKS).map(network => ({ chainId: network.chainId, name: network.name, nativeSymbol: network.nativeSymbol, pools: (network.plabs?.pools ?? []).map(pool => ({ address: pool.address, symbol: pool.symbol, decimals:pool.decimals, underlying:pool.underlying, canShield: Boolean(pool.underlying && !pool.nativeGateway), canUnshield: network.chainId === 143 && pool.symbol === 'sUSDC' })) })) };
     case 'plabs_requestPrivacyAccess':
       return privacyAccess.request(origin, params[0]);
     case 'plabs_getPrivacySession': {
@@ -2493,7 +2503,7 @@ const dispatchDappRequest = async (request: ProviderRequest, origin: string) => 
     case 'plabs_getDexOrders': return dappDexOrders(origin);
     case 'plabs_fundJubjubBid': return fundJubjubBid(origin, params[0]);
     case 'plabs_sendSponsoredPrivacyTransaction': return sendSponsoredPrivacyTransaction(origin, params[0]);
-    case 'plabs_mintNft': case 'plabs_resumeNftMint': case 'plabs_getNftMints': return nftRequest(origin, request.method, params[0]);
+    case 'plabs_mintNft': case 'plabs_resumeNftMint': case 'plabs_getNftMints': case 'plabs_getNftAssets': return nftRequest(origin, request.method, params[0]);
     case 'plabs_placeDexOrder': case 'plabs_resumeDexOrder': case 'plabs_cancelDexOrder': case 'plabs_collectDexPayouts': return dexRequest(origin,request.method,params[0]);
     case 'plabs_importOfficialDexOrders': return importOfficialDexOrders(origin);
     case 'plabs_getBalances': return dappPortfolio(origin);

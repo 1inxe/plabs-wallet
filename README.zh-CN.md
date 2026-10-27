@@ -86,3 +86,5 @@ pnpm run build     # TypeScript 检查与生产构建
 私有 Note、证明和恢复资料用现有隐私状态密钥加密，修改隐私密码仍保留该密钥。普通 Vault 导出不包含本地恢复日志；mint 未结束时请保留扩展存储。恢复同一个隐私 Vault 后，可重新扫描链上 NFT 持仓。
 
 构建后执行 `node --test tests/nft-mint.test.mjs`、`node tests/nft-prover-browser.mjs` 和 `node tests/nft-wallet-ui-browser.mjs`。浏览器测试仅使用合成测试账户，包含真实本地 Groth16 证明和 Note 解密，不提交真实 mint 或花费资金。
+
+网页可通过 SDK 0.3.1 的 `privacy.getNftAssets()`（或 `{ sync: true }`）读取和同步 NFT 持仓，需要独立的 `nfts` 授权。旧 address/notes 授权不会自动开放 NFT；账户变化或撤销权限会丢弃进行中的结果。
