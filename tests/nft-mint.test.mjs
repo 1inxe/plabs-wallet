@@ -54,6 +54,8 @@ function fixture() {
     confirmed: false,
     unknown: false,
     permitBad: false,
+    permitExpired: false,
+    permits: 0,
     chain: '0x1',
     reorg: false,
     signatureReject: false,
@@ -112,13 +114,14 @@ function fixture() {
       }
       if (path === '/jobs/synthetic-job') return structuredClone(job);
       if (path === '/jobs/synthetic-job/permit') {
+        state.permits++;
         assert.equal(body.mintCallHash, mintCallHash(journal.records[0].mint));
         assert.equal(body.tokenId, '7');
         assert.equal(body.payer, account);
         return {
           required: true,
           reservationId: state.permitBad ? 'bad' : '0x' + '67'.repeat(32),
-          deadline: Math.floor(Date.now() / 1000) + 120,
+          deadline: Math.floor(Date.now() / 1000) + (state.permitExpired ? -1 : 120),
           signature: '0x' + '89'.repeat(65),
         };
       }
@@ -276,6 +279,16 @@ test('rejected final approval reuses the original reservation and proof on expli
   assert.ok(result.txHash);
   assert.equal(f.state.proofs, 1);
   assert.equal(f.state.reserves, 1);
+});
+test('expired permits resume the original job and proof with a new permit', async () => {
+  const f=fixture();f.state.permitExpired=true;
+  const first=await f.engine.mint(origin,pool,'11'.repeat(32));
+  assert.equal(first.stage,'permit-expired');assert.equal(first.canResume,true);assert.equal(first.txHash,undefined);
+  assert.equal(f.state.signs,0);assert.equal(f.state.broadcasts,0);
+  f.state.permitExpired=false;
+  const resumed=await f.engine.mint(origin,pool,'11'.repeat(32),first.id);
+  assert.ok(resumed.txHash);assert.equal(resumed.id,first.id);assert.equal(resumed.tokenId,first.tokenId);
+  assert.deepEqual([f.state.reserves,f.state.proofs,f.state.permits],[1,1,2]);
 });
 test('wallet changes while proving cannot persist a new proof or broadcast', async () => {
   const f = fixture();
@@ -537,4 +550,15 @@ test('NFT transport rule only strips page metadata from this extension’s fixed
   await Promise.all([ensureNftTransport(), ensureNftTransport()]);
   assert.equal(calls.length, 2, 'failed initialization can retry; successful setup is coalesced');
   delete globalThis.chrome;
+});
+
+test('a permit expiring while the gas approval is open cannot be signed',async()=>{
+ const f=fixture();await f.engine.mint(origin,pool,'11'.repeat(32));
+ const record=f.journal().records[0],now=Date.now,deadline=Math.floor(now()/1000)+120;
+ const transaction={chainId:1,to:NFT.market,value:'0x0',data:protocol.encodeMint(pool,'7',record.mint,{required:true,reservationId:'0x'+'67'.repeat(32),deadline,signature:'0x'+'89'.repeat(65)})};
+ let signatures=0;
+ try{
+  await assert.rejects(signNftTransaction(transaction,{account,signer:{signTransaction:async()=>{signatures++;throw Error('must not sign');}},provider:{estimateGas:async()=>100000n,getFeeData:async()=>({maxFeePerGas:10n,maxPriorityFeePerGas:2n}),getBalance:async()=>10000000n,getTransactionCount:async()=>1},guard:async()=>{},approve:async()=>{Date.now=()=>now()+180000;}}),/许可(?:已过期|有效期不足)/);
+ }finally{Date.now=now;}
+ assert.equal(signatures,0);
 });

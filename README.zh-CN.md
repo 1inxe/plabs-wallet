@@ -69,7 +69,7 @@ pnpm run build     # TypeScript 检查与生产构建
 
 安装的扩展从 `dist/` 运行，不从开发服务器运行。dApp 示例使用真实注入的 provider，需要安装并解锁扩展。连接、读取权限与交易请求见[接入指南](docs/DAPP-INTEGRATION.md)。
 
-`src/` 包含扩展与示例；`public/` 包含 manifest、运行时图标、字体和证明资源。SDK 从 npm 安装，固定版本为 `plabs-js-sdk@0.3.0`，无需在同级检出 SDK 仓库。
+`src/` 包含扩展与示例；`public/` 包含 manifest、运行时图标、字体和证明资源。SDK 从 npm 安装，固定版本为 `plabs-js-sdk@0.3.1`，无需在同级检出 SDK 仓库。
 
 修改 README 时请同步更新英文和中文版本。
 
@@ -88,3 +88,5 @@ pnpm run build     # TypeScript 检查与生产构建
 构建后执行 `node --test tests/nft-mint.test.mjs`、`node tests/nft-prover-browser.mjs` 和 `node tests/nft-wallet-ui-browser.mjs`。浏览器测试仅使用合成测试账户，包含真实本地 Groth16 证明和 Note 解密，不提交真实 mint 或花费资金。
 
 网页可通过 SDK 0.3.1 的 `privacy.getNftAssets()`（或 `{ sync: true }`）读取和同步 NFT 持仓，需要独立的 `nfts` 授权。旧 address/notes 授权不会自动开放 NFT；账户变化或撤销权限会丢弃进行中的结果。
+
+钱包 0.8.3 在完成合约检查后再领取短期 mint 许可。许可过期会保留原预留、证明和 Note，恢复时重新获取许可；已有交易哈希的请求不会另发替代 mint。

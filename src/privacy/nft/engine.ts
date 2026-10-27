@@ -335,6 +335,8 @@ export class NftMintEngine {
         await this.save(journal);
         return publicMint(record);
       }
+      // Complete contract reads before requesting a short-lived permit.
+      await this.review(pool);
       const permit = parsePermit(
         await this.p.api(`/jobs/${encodeURIComponent(record.jobId!)}/permit`, {
           tokenId: record.tokenId,
@@ -342,7 +344,6 @@ export class NftMintEngine {
           payer: this.account.toLowerCase(),
         }),
       );
-      await this.review(pool);
       const transaction = {
         chainId: 1,
         to: NFT.market,
@@ -374,6 +375,13 @@ export class NftMintEngine {
       return publicMint(record);
     } catch (error) {
       if (!record) throw error;
+      if (!record.txHash && /NFT mint 许可(?:已过期|有效期不足)/.test(walletErrorMessage(error, 'ETH'))) {
+        record.state = record.mint ? 'ready' : 'review';
+        record.stage = 'permit-expired';
+        record.message = 'NFT mint 许可已过期；原预留、编号与证明已保存。恢复会重新获取许可，再确认 Gas。';
+        await this.save(journal);
+        return publicMint(record);
+      }
       record.message = record.txHash
         ? '链上状态暂不确定，请刷新原 mint'
         : walletErrorMessage(error, 'ETH').replace(/\b[0-9a-f]{64,}\b/gi, '[数据已隐藏]');

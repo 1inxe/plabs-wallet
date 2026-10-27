@@ -143,7 +143,7 @@ export function encodeMint(pool: string, tokenId: string, mint: MintNote, permit
   if (permit.required) args.push(permit.reservationId, permit.deadline, permit.signature);
   return nftInterface.encodeFunctionData(permit.required ? 'buyWithPermit' : 'buy', args);
 }
-export function inspectMintTransaction(input: unknown) {
+export function inspectMintTransaction(input: unknown, minimumPermitMs = 0) {
   const value = object(input);
   if (
     value.to !== NFT.market ||
@@ -171,8 +171,8 @@ export function inspectMintTransaction(input: unknown) {
     call.args[2].cmx === ZeroHash
   )
     throw new Error('NFT mint 输出无效');
-  if (call.name === 'buyWithPermit' && BigInt(call.args[5]) * 1000n <= BigInt(Date.now()))
-    throw new Error('NFT mint 许可已过期');
+  if (call.name === 'buyWithPermit' && BigInt(call.args[5]) * 1000n <= BigInt(Date.now() + minimumPermitMs))
+    throw new Error(minimumPermitMs ? 'NFT mint 许可有效期不足，请恢复原 mint 获取新许可' : 'NFT mint 许可已过期');
   return { poolAddress: pool, tokenId };
 }
 export function verifySignedTransaction(value: unknown, expected: Json, account: string) {

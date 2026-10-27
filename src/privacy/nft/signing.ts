@@ -12,7 +12,7 @@ export async function signNftTransaction(
     approve(details: Record<string, string>): Promise<void>;
   },
 ) {
-  const review = inspectMintTransaction(input),
+  const review = inspectMintTransaction(input, 30_000),
     transaction = object(input);
   await ports.guard();
   const request = {
@@ -53,7 +53,7 @@ export async function signNftTransaction(
     操作: '签署并广播此 NFT 铸造交易；不是普通转账或 ERC20 授权',
   });
   await ports.guard();
-  inspectMintTransaction(transaction);
+  inspectMintTransaction(transaction, 30_000);
   // No provider-controlled population after approval; all fee/nonce bounds are fixed.
   const raw = await ports.signer.signTransaction({
     to: NFT.market,

@@ -71,7 +71,7 @@ pnpm run build     # TypeScript checks and production build
 
 The installed extension runs from `dist/`, not the development server. The dApp example uses the real injected provider and requires the extension to be installed and unlocked. See the [integration guide](docs/DAPP-INTEGRATION.md) for connection, read permissions and transaction requests.
 
-`src/` contains the extension and example; `public/` contains the manifest, runtime icons, fonts and proving assets. The SDK is installed from npm as `plabs-js-sdk@0.3.0`, with no sibling SDK checkout required.
+`src/` contains the extension and example; `public/` contains the manifest, runtime icons, fonts and proving assets. The SDK is installed from npm as `plabs-js-sdk@0.3.1`, with no sibling SDK checkout required.
 
 Update the English and Chinese READMEs together when changing documentation.
 
@@ -92,3 +92,5 @@ Rebuild and reload the extension, then refresh connected pages to discover `nftM
 Verification: `node --test tests/nft-mint.test.mjs`; after `pnpm build`, run `node tests/nft-prover-browser.mjs` for a real local Groth16 proof and Note scan using a synthetic seed, and `node tests/nft-wallet-ui-browser.mjs` for the NFT section at 370/420 px. Browser tests reuse an installed Playwright/Chrome; set `NFT_PLAYWRIGHT_PATH` and `NFT_BROWSER_PATH` when needed. These tests do not mint a real NFT or spend mainnet funds.
 
 Connected dApps can use SDK 0.3.1 `privacy.getNftAssets()` (or `{ sync: true }`) after separate `nfts` consent. Existing address/notes access does not share NFT holdings. Account changes and revocation discard in-flight results.
+
+Wallet 0.8.3 requests free-mint permits after its contract reads. Expired permits keep their original reservation, proof and Note and can be renewed on resume; no replacement is submitted for a transaction with a saved hash.
