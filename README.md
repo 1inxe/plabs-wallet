@@ -71,7 +71,7 @@ pnpm run build     # TypeScript checks and production build
 
 The installed extension runs from `dist/`, not the development server. The dApp example uses the real injected provider and requires the extension to be installed and unlocked. See the [integration guide](docs/DAPP-INTEGRATION.md) for connection, read permissions and transaction requests.
 
-`src/` contains the extension and example; `public/` contains the manifest, runtime icons, fonts and proving assets. The SDK is installed from npm as `plabs-js-sdk@0.2.0`, with no sibling SDK checkout required.
+`src/` contains the extension and example; `public/` contains the manifest, runtime icons, fonts and proving assets. The SDK is installed from npm as `plabs-js-sdk@0.3.0`, with no sibling SDK checkout required.
 
 Update the English and Chinese READMEs together when changing documentation.
 
@@ -87,6 +87,6 @@ The **Private NFTs** section synchronizes the reviewed market's collection catal
 
 Mint proofs, reservations and private NFT Notes are encrypted with the existing privacy-state key. Password rotation preserves that key. Ordinary Vault exports do not include the local recovery journal; retain extension storage while a mint is unresolved. Confirmed holdings can be recovered by scanning the chain after importing the same privacy Vault.
 
-Rebuild and reload the extension, then refresh connected pages to discover `nftMinting`. The narrow `plabs_mintNft`, `plabs_getNftMints`, and `plabs_resumeNftMint` APIs do not enable arbitrary `eth_sendTransaction`. The standalone SDK source exposes equivalent typed methods; PLabs Network bridges the provider directly while its npm dependency remains at 0.2.0.
+Rebuild and reload the extension, then refresh connected pages to discover `nftMinting`. The narrow `plabs_mintNft`, `plabs_getNftMints`, and `plabs_resumeNftMint` APIs do not enable arbitrary `eth_sendTransaction`. Both repositories use the published SDK 0.3.0 NFT request/result types and methods.
 
 Verification: `node --test tests/nft-mint.test.mjs`; after `pnpm build`, run `node tests/nft-prover-browser.mjs` for a real local Groth16 proof and Note scan using a synthetic seed, and `node tests/nft-wallet-ui-browser.mjs` for the NFT section at 370/420 px. Browser tests reuse an installed Playwright/Chrome; set `NFT_PLAYWRIGHT_PATH` and `NFT_BROWSER_PATH` when needed. These tests do not mint a real NFT or spend mainnet funds.

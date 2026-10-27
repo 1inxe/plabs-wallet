@@ -1,4 +1,5 @@
 import { AbiCoder, Interface, Transaction, ZeroHash, getBytes, hexlify, keccak256 } from 'ethers';
+import type { NftMintRequest } from 'plabs-js-sdk';
 
 export const NFT = {
   chainId: 1,
@@ -29,7 +30,7 @@ export const integer = (value: unknown) => {
     throw new Error('NFT 数量或时间无效');
   return n;
 };
-export function parseMintRequest(input: unknown) {
+export function parseMintRequest(input: unknown): NftMintRequest {
   const value = object(input);
   if (
     Object.keys(value).some((key) => !['chainId', 'poolAddress'].includes(key)) ||

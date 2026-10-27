@@ -2,7 +2,7 @@
 
 [English](README.md) | **简体中文**
 
-PLabs Network 和 PLabs Wallet 从 npm 安装 `plabs-js-sdk@0.2.0`。两个项目的 `package.json` 固定精确版本，`pnpm-lock.yaml` 固定完整性校验值。SDK 源码仅在独立的 [plabs-js-sdk 仓库](https://github.com/1inxe/plabs-js-sdk)维护。
+PLabs Network 和 PLabs Wallet 从 npm 安装 `plabs-js-sdk@0.3.0`。两个项目的 `package.json` 固定精确版本，`pnpm-lock.yaml` 固定完整性校验值。SDK 源码仅在独立的 [plabs-js-sdk 仓库](https://github.com/1inxe/plabs-js-sdk)维护。
 
 ## 更新依赖
 

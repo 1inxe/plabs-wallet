@@ -1,3 +1,4 @@
+import type { NftMintResult } from 'plabs-js-sdk';
 import { base64ToBytes, bytesToBase64 } from '../../shared/encoding';
 import type { Json, MintNote } from './protocol';
 
@@ -86,7 +87,7 @@ export async function open(value: unknown, id: string, key: CryptoKey): Promise<
     throw new Error('NFT 资产记录损坏');
   return journal;
 }
-export function publicMint(record: MintRecord) {
+export function publicMint(record: MintRecord): NftMintResult {
   return {
     id: record.id,
     chainId: 1 as const,
