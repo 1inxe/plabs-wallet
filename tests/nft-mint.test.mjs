@@ -562,3 +562,14 @@ test('a permit expiring while the gas approval is open cannot be signed',async()
  }finally{Date.now=now;}
  assert.equal(signatures,0);
 });
+
+test('full asset rescan replays NFT history without discarding known holdings or send recovery',async()=>{
+  const f=syncFixture();await f.engine.sync();
+  f.journal().transfers=[{id:'synthetic-send-recovery'}];
+  const scans=f.calls.filter(c=>c.method==='eth_getLogs').length;
+  await f.engine.sync(true,true);
+  assert.equal(f.calls.filter(c=>c.method==='eth_getLogs').length,scans+1);
+  assert.equal((await f.engine.snapshot()).items[0].tokenId,'55');
+  assert.equal(f.journal().holdings.length,1,'Replayed commitments are deduplicated');
+  assert.equal(f.journal().transfers[0].id,'synthetic-send-recovery');
+});

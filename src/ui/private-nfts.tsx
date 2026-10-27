@@ -21,11 +21,14 @@ export function PrivateNfts({
   chainId,
   unlocked,
   automaticSync,
+  managedSync,
 }: {
   chainId: number;
   unlocked: boolean;
   automaticSync: boolean;
+  managedSync?: { busy: boolean; revision: number };
 }) {
+  const managed = Boolean(managedSync);
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [error, setError] = useState('');
   const [sending, setSending] = useState(false);
@@ -77,12 +80,13 @@ export function PrivateNfts({
   useEffect(() => {
     if (!unlocked || chainId !== 1) return;
     void read();
+    if (managed) return;
     if (automaticSync) void sync();
     const timer = window.setInterval(() => {
       if (automaticSync && !running.current) void sync();
     }, 120_000);
     return () => window.clearInterval(timer);
-  }, [chainId, unlocked, automaticSync]);
+  }, [chainId, unlocked, automaticSync, managed, managedSync?.revision]);
   useEffect(() => {
     if (!unlocked || chainId !== 1) return;
     const timer = window.setInterval(
@@ -93,6 +97,7 @@ export function PrivateNfts({
     );
     return () => window.clearInterval(timer);
   }, [syncing, unlocked, chainId]);
+  const isSyncing = managedSync?.busy ?? syncing;
   const selectedAsset = snapshot?.items.find((asset) => asset.id === selected);
   return (
     <section className="panel private-nft-assets">
@@ -104,13 +109,15 @@ export function PrivateNfts({
           </h2>
           <small>私有持有 · Ethereum</small>
         </div>
-        <IconButton
-          label="同步隐私 NFT"
-          disabled={!unlocked || chainId !== 1 || syncing}
-          onClick={() => void sync()}
-        >
-          <RefreshCw size={15} className={syncing ? 'animate-spin' : ''} />
-        </IconButton>
+        {!managed && (
+          <IconButton
+            label="同步隐私 NFT"
+            disabled={!unlocked || chainId !== 1 || syncing}
+            onClick={() => void sync()}
+          >
+            <RefreshCw size={15} className={syncing ? 'animate-spin' : ''} />
+          </IconButton>
+        )}
       </div>
       {!unlocked ? (
         <EmptyState>解锁隐私钱包后查看 NFT</EmptyState>
@@ -155,14 +162,16 @@ export function PrivateNfts({
           </div>
           {!snapshot?.items.length && (
             <EmptyState>
-              {syncing
+              {isSyncing
                 ? '正在扫描当前隐私账户的 NFT…'
                 : snapshot?.syncComplete
                   ? '已同步，当前隐私地址暂无 NFT'
-                  : 'NFT 尚未完成同步，点击右上角同步'}
+                  : managed
+                    ? 'NFT 尚未完成同步，点击上方同步隐私资产'
+                    : 'NFT 尚未完成同步，点击右上角同步'}
             </EmptyState>
           )}
-          {syncing && (
+          {!managed && syncing && (
             <p className="micro text-muted" role="status">
               正在同步…
             </p>

@@ -16,6 +16,7 @@ import { createPrivacyAccess, PrivacyAccessError, readPagination, readScopes, sa
 import { publicBalances, privateBalances, historyEntries } from './dapp-api/read-models';
 import type { PrivacyReadScope, PrivacyNote, PrivacyHistoryPage, WalletPortfolio } from 'plabs-js-sdk';
 import { createPublicTransfers } from './public/transfers';
+import { syncPrivacyAssets } from './privacy/sync-assets';
 import { syncPrivacyPools } from './privacy/sync-pools';
 import { legacyGasFailure, isInsufficientGasRejection } from './privacy/failure';
 import { admitDappRequest, validateReadRpc, BoundaryError } from './shared/dapp-boundary';
@@ -135,6 +136,8 @@ const changeAuthorization = <T>(work: () => Promise<T>): Promise<T> => {
 const activeSubmissions = new Set<string>();
 const invalidateOperations = () => { operationEpoch++; preparedOperations.clear(); publicTransfers.clear(); };
 const privacySyncJobs = new Map<ChainId, Promise<PrivacyPoolSnapshot[]>>();
+type AssetSyncState = { epoch: number; address: string; phase: 'tokens' | 'nfts' | 'complete' | 'error'; startedAt: number; error?: string; job?: Promise<PrivacyPoolSnapshot[]> };
+const privacyAssetSync = new Map<ChainId, AssetSyncState>();
 
 interface WalletUnlockSession {
   version: 3;
@@ -512,7 +515,7 @@ const callPrivacyEngine = async <T>(action: string, payload: Record<string, unkn
   return response.result as T;
 };
 
-const getPrivacySyncProgress = async (chainId: ChainId): Promise<PrivacySyncProgress> => {
+const getTokenSyncProgress = async (chainId: ChainId): Promise<PrivacySyncProgress> => {
   const pools = NETWORKS[chainId].plabs?.pools ?? [];
   if (pools.length === 0) {
     return { chainId, status: 'idle', progress: 0, message: '当前网络没有隐私资产' };
@@ -558,6 +561,17 @@ const getPrivacySyncProgress = async (chainId: ChainId): Promise<PrivacySyncProg
       : {}),
     ...(error ? { error } : {}),
   };
+};
+
+const getPrivacySyncProgress = async (chainId: ChainId): Promise<PrivacySyncProgress> => {
+  const state = privacyAssetSync.get(chainId);
+  if (!state || state.epoch !== operationEpoch || state.address !== requireUnlocked().address) return getTokenSyncProgress(chainId);
+  const base = { chainId, startedAt: state.startedAt, updatedAt: Date.now() };
+  if (state.phase === 'complete') return { ...base, status: 'complete', progress: 100, message: '同步完成' };
+  if (state.phase === 'error') return { ...base, status: 'error', progress: 0, message: '同步未完成', error: state.error };
+  if (state.phase === 'nfts') return { ...base, status: 'syncing', progress: 80, message: '正在同步 NFT' };
+  const tokens = await getTokenSyncProgress(chainId);
+  return { ...base, status: 'syncing', progress: chainId === 1 ? Math.min(79, Math.floor(tokens.progress * 0.8)) : Math.min(99, tokens.progress), message: '正在同步资产' };
 };
 
 const privacyAccountState = async (): Promise<PrivacyAccountState> => {
@@ -1918,7 +1932,7 @@ const syncForMerge = async (chainId: ChainId) => {
     const snapshots: PrivacyPoolSnapshot[] = [];
     for (const pool of NETWORKS[chainId].plabs!.pools) snapshots.push(await callPrivacyEngine<PrivacyPoolSnapshot>('PRIVACY_SYNC_POOL', { chainId, poolAddress: pool.address }));
     return snapshots;
-  })().finally(() => privacySyncJobs.delete(chainId));
+  })().finally(() => { if (privacySyncJobs.get(chainId) === job) privacySyncJobs.delete(chainId); });
   privacySyncJobs.set(chainId, job); await job;
 };
 const privacyMerges = createPrivacyMergeService({
@@ -3028,35 +3042,52 @@ const dispatchRuntimeMessage = async (message: Record<string, unknown>, sender: 
       await lockPrivacy();
       return privacyAccountState();
     case 'SYNC_PRIVACY': {
-      await requirePrivacyUnlocked();
+      const wallet = requireUnlocked(); await requirePrivacyUnlocked();
       const chainId = Number(message.chainId);
       if (!isSupportedChainId(chainId) || !NETWORKS[chainId].plabs) throw new Error('该网络没有 PLabs 配置');
-      const running = privacySyncJobs.get(chainId);
-      if (running) return running;
+      const epoch = operationEpoch;
+      const privacy = await privacyAccountState();
+      const guard = async () => {
+        if (pendingAuthorizationChanges || operationEpoch !== epoch || requireUnlocked().address !== wallet.address || await selectedChainId() !== chainId) throw new Error('隐私同步会话已变化，请重新同步');
+        await requirePrivacyUnlocked();
+        if (operationEpoch !== epoch) throw new Error('隐私同步会话已变化');
+      };
+      await guard();
+      const running = privacyAssetSync.get(chainId);
+      if (running?.epoch === epoch && running.address === wallet.address && running.job) return running.job;
+      const previous = privacySyncJobs.get(chainId);
+      const state: AssetSyncState = { epoch, address: wallet.address, phase: 'tokens', startedAt: Date.now() };
       const pools = NETWORKS[chainId].plabs!.pools;
       const job = (async () => {
-        privacyStatus = 'syncing';
-        await callPrivacyEngine('PRIVACY_RESET_SYNC_STATUS', {
-          chainId,
-          poolAddresses: pools.map((pool) => pool.address),
-        });
+        if (previous) await previous.catch(() => {});
+        await guard(); privacyStatus = 'syncing'; privacyError = '';
         try {
-          const snapshots = await syncPrivacyPools(pools, pool =>
-            callPrivacyEngine<PrivacyPoolSnapshot>('PRIVACY_SYNC_POOL', {
-              chainId,
-              poolAddress: pool.address,
-              rescan: message.rescan === true,
-            }));
-          privacyStatus = 'ready';
-          privacyError = '';
+          const snapshots = await syncPrivacyAssets({
+            guard, phase: phase => { state.phase = phase; },
+            tokens: async () => {
+              await callPrivacyEngine('PRIVACY_RESET_SYNC_STATUS', { chainId, poolAddresses: pools.map(pool => pool.address) });
+              return syncPrivacyPools(pools, async pool => {
+                await guard();
+                return callPrivacyEngine<PrivacyPoolSnapshot>('PRIVACY_SYNC_POOL', { chainId, poolAddress: pool.address, rescan: message.rescan === true });
+              });
+            },
+            ...(chainId === 1 ? { nfts: () => callPrivacyEngine<{ syncComplete: boolean; error?: string }>('PRIVACY_NFT_SYNC', {
+              account: wallet.address, includeTransfers: true, internalSync: true, rescan: message.rescan === true,
+              binding: { address: wallet.address, privacy: privacy.privacyAddress, revision: epoch },
+            }) } : {}),
+          });
+          state.phase = 'complete'; privacyStatus = 'ready'; privacyError = '';
           return snapshots;
         } catch (error) {
-          privacyStatus = 'error';
-          privacyError = error instanceof Error ? error.message : String(error);
+          state.phase = 'error'; state.error = error instanceof Error ? error.message : String(error);
+          if (operationEpoch === epoch) { privacyStatus = 'error'; privacyError = state.error; }
           throw error;
         }
-      })().finally(() => privacySyncJobs.delete(chainId));
-      privacySyncJobs.set(chainId, job);
+      })().finally(() => {
+        state.job = undefined;
+        if (privacySyncJobs.get(chainId) === job) privacySyncJobs.delete(chainId);
+      });
+      state.job = job; privacyAssetSync.set(chainId, state); privacySyncJobs.set(chainId, job);
       return job;
     }
     case 'GET_PRIVACY_SYNC_PROGRESS': {

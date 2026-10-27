@@ -1365,7 +1365,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       if (message.action === 'PRIVACY_NFT_SYNC') {
         const sync = async () => {
           if (!active || session !== active) throw new Error('隐私会话已变化');
-          return nftContext(message.account, message.binding).assets.sync(message.includeTransfers === true);
+          return nftContext(message.account, message.binding, message.internalSync === true).assets.sync(message.includeTransfers === true, message.rescan === true);
         };
         return queueNft(sync);
       }

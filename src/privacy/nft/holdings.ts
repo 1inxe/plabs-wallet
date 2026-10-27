@@ -100,11 +100,15 @@ export class NftAssetSync {
     }
     return low;
   }
-  async sync(includeTransfers = false) {
+  async sync(includeTransfers = false, rescan = false) {
     await this.p.guard();
     const journal = await this.p.load();
     journal.holdings ??= [];
     journal.pools ??= {};
+    if (rescan) for (const cursor of Object.values(journal.pools)) {
+      cursor.cursor = cursor.firstBlock - 1;
+      cursor.blockHash = undefined;
+    }
     journal.syncError = undefined;
     journal.syncComplete = false;
     journal.syncProgress = '正在读取 Ethereum NFT 目录…';
@@ -240,6 +244,10 @@ export class NftAssetSync {
         }
         // The nullifier is derived locally; no note opening or viewing key leaves the extension.
         for (const note of journal.holdings.filter((note) => note.pool === pool)) {
+          if (rescan && (await this.view(pool, 'cmxExists', [note.cmx], target))[0] !== true) {
+            note.spent = true;
+            continue;
+          }
           const spent = (
             await this.view(
               pool,
