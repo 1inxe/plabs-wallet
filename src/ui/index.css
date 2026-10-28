@@ -497,3 +497,66 @@ html:has(#root:not([hidden]) .connected-site-bar):not(:has(#root .flow-page)) .w
 
 .asset-list-tools { display: flex; align-items: center; justify-content: flex-end; gap: 4px; min-height: 32px; }
 .private-nft-grid { margin-top: 0; }
+
+/* Clear hierarchy, quiet surfaces, and a single emerald accent. */
+:root { --wallet-canvas: #0d1418; --wallet-surface: #172126; --wallet-line: #a7c3b416; --wallet-accent: #65e5b4; }
+html, body, #root, .wallet-shell { background: var(--wallet-canvas); }
+.panel { border-color: var(--wallet-line); background: var(--wallet-surface); }
+.account-header { height: 68px; padding: 10px 16px; background: #0d1418ed; border-color: #c8ddcf0b; }
+.account-header .account-pill { border: 0; border-radius: 12px; background: transparent; padding: 3px 0; gap: 9px; }
+.account-header .number-dot { width: 32px; height: 32px; border-radius: 11px; background: linear-gradient(145deg,#7ce6bc,#4cce9c); color: #10352a; font-size: 13px; box-shadow: inset 0 1px 0 #ffffff45; }
+.account-header .account-pill strong { font-size: 12px; line-height: 19px; font-weight: 600; gap: 4px; }
+.account-header .account-pill small { color: #8a9c98; font-size: 9px; line-height: 14px; }
+.account-header .network-pill { background: #ffffff04; border-color: #b9cfc213; border-radius: 10px; padding-left: 9px; }
+.account-header .network-pill button { height: 32px; font-size: 11px; padding-right: 9px; }
+.account-header .status-dot.amber { width: 5px; height: 5px; background: #e2b676; box-shadow: none; }
+.account-header button[aria-label='设置'] { width: 32px; height: 32px; border-radius: 10px; color: #94a8a0; background: #ffffff04; }
+.dashboard-body { padding: 16px 16px 24px; gap: 14px; }
+.vault-card { padding: 17px 18px 12px; border: 1px solid #8eb7a52b; border-radius: 20px; background: radial-gradient(ellipse at 100% 0%,#3c8a6329,transparent 64%),linear-gradient(145deg,#1b2a2a,#152025 72%); box-shadow: inset 0 1px 0 #d4f5e608,0 12px 30px #0000001a; }
+.vault-card h2 { color: #c7d9d1; font-size: 12px; font-weight: 500; letter-spacing: .03em; }
+.vault-card .activity-history-button { padding: 3px 0 3px 8px; gap: 5px; font-size: 10px; color: #95b4a5; }
+.vault-card .activity-history-button > svg:last-child { width: 11px; }
+.vault-card .balance-overview { margin-top: 9px; min-height: 61px; }
+.vault-card .balance-number { display: inline-flex; align-items: baseline; gap: 9px; line-height: 1; color: #eff7f2; }
+.vault-card .balance-count { font-size: 52px; line-height: 1.12; font-weight: 500; letter-spacing: -.055em; font-variant-numeric: tabular-nums; }
+.vault-card .balance-number small { font-family: inherit; font-size: 12px; font-weight: 400; color: #98afa3; white-space: nowrap; }
+.vault-card .balance-overview > button { width: 30px; height: 30px; color: #90a89c; }
+.vault-card .action-grid { gap: 9px; margin-top: 11px; }
+.vault-card .action-grid > button { min-height: 58px; padding: 4px 0 5px; border: 0; border-radius: 12px; background: transparent; gap: 6px; color: #d5e5dc; transition: background .15s ease; }
+.vault-card .action-grid > button > span:first-child { width: 34px; height: 34px; border: 1px solid #b8d5c51a; border-radius: 12px; background: linear-gradient(145deg,#b8d9c810,#b8d9c804); color: #8ee3bc; }
+.vault-card .action-grid > button strong { font-family: inherit; font-size: 11px; font-weight: 500; }
+.vault-card .action-grid > button:hover:not(:disabled) { background: #c5f3da08; }
+.vault-card .action-grid > button.receive-action > span { background: #77deb01b; border-color: #77deb028; }
+.vault-card .shield-entry { min-height: 38px; padding: 9px 12px; margin-top: 12px; gap: 7px; border: 1px solid #96edc45c; border-radius: 10px; background: linear-gradient(105deg,#80e4b9,#59cfa3); color: #103a2b; font-size: 12px; font-weight: 600; box-shadow: inset 0 1px 0 #ffffff30,0 4px 12px #051d101f; }
+.vault-card .shield-entry:hover:not(:disabled) { filter: brightness(1.04); }
+.vault-card .private-session { min-height: 22px; padding: 8px 0 0; margin-top: 11px; border-top: 1px solid #bed9c810; color: #7f9b8c; font-size: 9px; }
+.vault-card .private-session > button { padding: 0 0 0 10px; color: #9bb3a6; font-size: 9px; }
+.sync-summary { min-height: 25px; padding: 0 3px; gap: 7px; color: #849c90; font-size: 10px; }
+.sync-summary > .status-dot { width: 5px; height: 5px; box-shadow: none; }
+.sync-summary > button { height: 26px; min-height: 26px; padding-top: 0; padding-bottom: 0; color: #8da99a; }
+.sync-summary > button:first-of-type { width: 26px; }
+.sync-summary .sync-progress { height: 3px; background: #b0cbb512; }
+.sync-summary .sync-progress > span { background: #75d8aa; }
+.sync-summary .text-toggle { font-size: 9px; color: #789384; }
+.wallet-assets { gap: 11px; margin-top: 3px; }
+.wallet-assets-heading { padding: 0 2px; }
+.wallet-assets-heading > h2 { font-size: 15px; font-weight: 600; letter-spacing: .01em; color: #dfece4; }
+.wallet-asset-tabs { gap: 9px; padding: 0; border: 0; border-bottom: 1px solid #aacbb519; border-radius: 0; background: transparent; }
+.wallet-asset-tabs > button { position: relative; min-width: 0; height: 37px; padding: 0 8px 9px; border-radius: 0; font-size: 12px; font-weight: 500; color: #7f9689; }
+.wallet-asset-tabs > button[data-state='active'] { color: #8de8bd; background: transparent; box-shadow: none; }
+.wallet-asset-tabs > button[data-state='active']::after { content: ''; position: absolute; bottom: -1px; left: 21%; right: 21%; height: 2px; border-radius: 2px; background: #71dfad; }
+.wallet-asset-content > .private-assets, .wallet-asset-content > .public-assets, .wallet-asset-content > .private-nft-assets { padding: 0; border: 0; border-radius: 0; background: transparent; }
+.wallet-assets .asset-list-tools { min-height: 24px; }
+.wallet-assets .asset-row { margin-top: 7px; padding: 13px 12px; border-color: #bdd8c812; border-radius: 13px; background: linear-gradient(120deg,#1b272a,#152024); }
+.wallet-assets .asset-meta strong { font-size: 13px; font-weight: 600; }
+.wallet-assets .asset-meta small { color: #7e9b8a; }
+.wallet-assets .asset-symbol.private { width: 34px; height: 34px; border-color: #91ccac24; background: #6bd7a115; }
+.wallet-assets .asset-amount { font-size: 14px; font-weight: 500; }
+.wallet-assets .add-asset { min-height: 32px; margin-top: 10px; border-color: #c0d6c214; border-radius: 9px; color: #829b8b; }
+.private-nft-grid { gap: 12px; }
+.private-nft-card { border-color: #b4d8c417; border-radius: 14px; background: #162126; box-shadow: 0 3px 12px #00000012; }
+.private-nft-art { background: #1b2b2b; }
+.private-nft-copy { padding: 11px 12px 12px; gap: 5px; }
+.private-nft-copy > strong { color: #d6e8dc; font-size: 12px; font-weight: 500; line-height: 17px; }
+.private-nft-copy > span { color: #819e8e; font-size: 10px; }
+@media (max-width: 379px) { .dashboard-body { padding: 14px 14px 22px; } .account-header { padding-inline: 14px; } .vault-card { padding-inline: 16px; } }
