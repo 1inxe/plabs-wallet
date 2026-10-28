@@ -85,6 +85,7 @@ export const NETWORKS: Record<ChainId, NetworkConfig> = {
           name: 'Shield USDC',
           symbol: 'sUSDC',
           address: '0xcB36e209aE44FAFc75dC6820Ae42d9400637f99E',
+          indexerUrl: 'https://app.plabs.online/dex-indexer/quote',
           underlying: '0x754704Bc059F8C67012fEd69BC8A327a5aafb603',
           scale: '1',
           decimals: 6,

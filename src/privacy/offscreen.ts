@@ -3,6 +3,7 @@ import { NftTransferEngine } from './nft/transfer';
 import { readJsonResponse } from '../shared/network-response';
 import { DEFAULT_MERGE_BATCH_SIZE, MERGE_WALLET_MAX_INPUTS, validMergeBatchSize } from './merge-settings';
 import { feeGatewayInterface, relayerInputLimit } from './fees';
+import { fetchFrozenLeaves, fetchMerklePath } from './indexer';
 import { createProverClient } from './prover-client';
 import { Interface } from 'ethers';
 import { NETWORKS } from '../shared/networks';
@@ -317,7 +318,7 @@ const sponsoredContext = (request?: PublicRequest, token = '', binding?: unknown
       const result = await rpc(NETWORKS[143].rpcUrls, method, args); await guard(); return result;
     },
     frozen: async () => {
-      await guard(); const result = await fetchJson(`${NETWORKS[143].plabs!.indexerUrl}/frozen_leaves?pool=${request!.payment.poolAddress}`);
+      await guard(); const result = await fetchFrozenLeaves(143, request!.payment.poolAddress);
       await guard(); if (!Array.isArray(result.leaves)) throw new Error('赞助支付冻结状态不可用'); return result.leaves;
     },
   };
@@ -563,9 +564,7 @@ const verifiedSpendInputs = async ({
   if (!network.plabs) throw new Error('当前网络没有 PLabs 配置');
   const paths = [];
   for (const note of notes) {
-    const path = await fetchJson(
-      `${network.plabs.indexerUrl}/merkle_path?pool=${encodeURIComponent(poolAddress)}&cmx=${encodeURIComponent(note.cmxHex)}`,
-    );
+    const path = await fetchMerklePath(chainId, poolAddress, note.cmxHex);
     if (path.frozen !== true || !Array.isArray(path.siblings) || path.siblings.length !== 32) {
       throw new Error(`note ${note.cmxHex.slice(0, 10)} 的 Merkle 路径尚未确认`);
     }
@@ -714,7 +713,7 @@ const preparePrivacyOperation = async (input: {
     Promise.resolve(root),
     viewCall(network.rpcUrls, pool.address, 'cmxFrozenRoot').then((result) => result[0]),
   ]);
-  const frozen = await fetchJson(`${plabs.indexerUrl}/frozen_leaves?pool=${encodeURIComponent(pool.address)}`).catch(() => ({ leaves: [] }));
+  const frozen = await fetchFrozenLeaves(input.chainId, pool.address).catch(() => ({ leaves: [] }));
   const common = {
     seed_hex: input.seedHex,
     bip44_coin_type: 60,
@@ -755,7 +754,7 @@ const preparePrivacyOperation = async (input: {
       const [[feeRoot], [feeFrozenRoot], [feeMaxActions]] = await Promise.all([
         viewCall(network.rpcUrls, fees.feePool, 'cmxRoot'), viewCall(network.rpcUrls, fees.feePool, 'cmxFrozenRoot'), viewCall(network.rpcUrls, fees.feePool, 'maxActions'),
       ]);
-      const feeFrozen = await fetchJson(`${plabs.indexerUrl}/frozen_leaves?pool=${encodeURIComponent(fees.feePool)}`);
+      const feeFrozen = await fetchFrozenLeaves(input.chainId, fees.feePool);
       const feeProof = await callProver('prove_note', {
         seed_hex: input.seedHex, bip44_coin_type: 60, spend_notes: [feeNote.ownedNote],
         anchor_hex: `0x${reverseHexByByte(String(feeRoot))}`, merkle_path_overrides: feePaths,

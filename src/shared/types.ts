@@ -16,6 +16,7 @@ export interface NetworkConfig {
       name: string;
       symbol: string;
       address: `0x${string}`;
+      indexerUrl?: string;
       underlying?: `0x${string}`;
       nativeGateway?: `0x${string}`;
       scale?: string;
