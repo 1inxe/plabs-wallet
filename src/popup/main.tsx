@@ -3504,7 +3504,7 @@ function Dashboard({
   onState: (state: WalletState) => void;
 }) {
   const [screen, setScreen] = useState<WalletScreen>('assets');
-  useEffect(() => {
+  useLayoutEffect(() => {
     window.scrollTo(0, 0);
   }, [screen]);
   const [adding, setAdding] = useState(false);

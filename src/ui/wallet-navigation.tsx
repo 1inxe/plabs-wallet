@@ -20,11 +20,11 @@ export function WalletNavigation({
         <button
           key={id}
           aria-label={t(label)}
+          title={t(label)}
           aria-current={value === id ? 'page' : undefined}
           onClick={() => onChange(id)}
         >
-          <Icon size={22} strokeWidth={1.7} />
-          <span>{t(label)}</span>
+          <Icon size={24} strokeWidth={1.8} />
         </button>
       ))}
     </nav>

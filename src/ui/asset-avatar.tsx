@@ -42,7 +42,7 @@ export function AssetAvatar({
           <path d="M12 0v22l11-6Z" fill="#000" opacity=".18" />
         </svg>
       ) : (
-        <span>{symbol.replace(/^s(?=[A-Z])/, '').slice(0, 3)}</span>
+        <span>{symbol.replace(/^s(?=[A-Z])/, '').slice(0, 4)}</span>
       )}
     </span>
   );

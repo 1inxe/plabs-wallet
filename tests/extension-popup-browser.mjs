@@ -51,7 +51,9 @@ try {
   const open = async () => {
     await worker.evaluate(async () => {
       const [window] = await chrome.windows.getAll({ windowTypes: ['normal'] });
-      if (window?.id === undefined) throw Error('Popup fixture has no browser window');
+      if (window?.id === undefined)
+        throw Error('Popup fixture has no browser window');
+      await chrome.windows.update(window.id, { focused: true });
       await chrome.action.openPopup({ windowId: window.id });
     });
     let target;
@@ -119,7 +121,10 @@ try {
           walletUiLanguage: 'en',
         });
       }, fixtureVault);
-    if(mode==='locked-zh')await worker.evaluate(()=>chrome.storage.local.remove('walletUiLanguage'));
+    if (mode === 'locked-zh')
+      await worker.evaluate(() =>
+        chrome.storage.local.remove('walletUiLanguage'),
+      );
     const { command, target } = await open();
     const result = await command('Runtime.evaluate', {
       expression: `JSON.stringify({width:innerWidth,height:innerHeight,htmlWidth:document.documentElement.getBoundingClientRect().width,bodyWidth:document.body.getBoundingClientRect().width,horizontalOverflow:document.documentElement.scrollWidth>innerWidth,passwordWidth:document.querySelector('.password-field input')?.getBoundingClientRect().width,heading:document.querySelector('h1')?.textContent,language:document.documentElement.lang,placeholder:document.querySelector('.password-field input')?.getAttribute('placeholder')})`,
@@ -132,8 +137,12 @@ try {
     assert.equal(size.horizontalOverflow, false);
     assert.ok(size.passwordWidth >= 300);
     if (mode !== 'setup') assert.equal(size.heading, 'PLabs Wallet');
-    assert.equal(size.language,mode==='locked'?'en':'zh-CN');
-    if(mode!=='setup')assert.equal(size.placeholder,mode==='locked'?'Enter wallet password':'请输入钱包主密码');
+    assert.equal(size.language, mode === 'locked' ? 'en' : 'zh-CN');
+    if (mode !== 'setup')
+      assert.equal(
+        size.placeholder,
+        mode === 'locked' ? 'Enter wallet password' : '请输入钱包主密码',
+      );
     const shot = await command('Page.captureScreenshot', {
       format: 'png',
       captureBeyondViewport: false,
@@ -175,6 +184,141 @@ try {
               '1:private:0xfc8bf8b613cae37db53003ec6a306a62d5a0b7c5'
             ],
           }),
+      );
+    }
+    if (mode === 'locked-zh') {
+      const unlock = await command('Runtime.evaluate', {
+        expression: `(async()=>{const r=await chrome.runtime.sendMessage({action:'UNLOCK',password:${JSON.stringify(fixturePassword)}});if(!r.ok)throw Error(r.error.message);return true})()`,
+        awaitPromise: true,
+        returnByValue: true,
+      });
+      assert.equal(unlock.exceptionDetails, undefined);
+      for (let i = 0; i < 60; i++) {
+        const ready = await command('Runtime.evaluate', {
+          expression: "Boolean(document.querySelector('.wallet-navigation'))",
+          returnByValue: true,
+        });
+        if (ready.result.value) break;
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+      for (const [language, names] of [
+        ['zh-CN', ['藏品', '活动', '设置', '资产', '藏品', '设置', '资产']],
+        ['en', ['Collectibles', 'Activity', 'Settings', 'Assets']],
+      ]) {
+        await worker.evaluate(
+          (language) =>
+            chrome.storage.local.set({ walletUiLanguage: language }),
+          language,
+        );
+        for (let i = 0; i < 60; i++) {
+          const ready = await command('Runtime.evaluate', {
+            expression: `document.documentElement.lang === ${JSON.stringify(language)}`,
+            returnByValue: true,
+          });
+          if (ready.result.value) break;
+          await new Promise((resolve) => setTimeout(resolve, 100));
+        }
+        for (const targetName of names) {
+          const prepared = await command('Runtime.evaluate', {
+            expression: `(async()=>{
+              await document.fonts.ready;
+              const nav=document.querySelector('.wallet-navigation');
+              const rect=node=>{const r=node.getBoundingClientRect();return [r.x,r.y,r.width,r.height]};
+              const collect=()=>({viewport:[innerWidth,innerHeight,outerWidth,outerHeight,devicePixelRatio],nav:[nav,...nav.querySelectorAll('button,svg')].map(rect),scroll:[scrollY,document.documentElement.clientWidth],header:rect(document.querySelector('.account-header'))});
+              window.scrollTo(0,document.documentElement.scrollHeight);
+              await new Promise(requestAnimationFrame);
+              const before=collect();
+              const button=[...nav.querySelectorAll('button')].find(b=>b.getAttribute('aria-label')===${JSON.stringify(targetName)});
+              if(!button)throw Error('Missing navigation target');
+              button.addEventListener('click',()=>{
+                window.__navFrames=new Promise(resolve=>{
+                  const frames=[];
+                  const tick=()=>{frames.push(collect());if(frames.length===30)resolve(JSON.stringify({before,frames}));else requestAnimationFrame(tick)};
+                  requestAnimationFrame(tick);
+                });
+              },{once:true});
+              return JSON.stringify(rect(button));
+            })()`,
+            awaitPromise: true,
+            returnByValue: true,
+          });
+          assert.equal(prepared.exceptionDetails, undefined);
+          const [x, y, width, height] = JSON.parse(prepared.result.value);
+          await command('Input.dispatchMouseEvent', {
+            type: 'mouseMoved',
+            x: x + width / 2,
+            y: y + height / 2,
+          });
+          await command('Input.dispatchMouseEvent', {
+            type: 'mousePressed',
+            button: 'left',
+            buttons: 1,
+            clickCount: 1,
+            x: x + width / 2,
+            y: y + height / 2,
+          });
+          await command('Input.dispatchMouseEvent', {
+            type: 'mouseReleased',
+            button: 'left',
+            buttons: 0,
+            clickCount: 1,
+            x: x + width / 2,
+            y: y + height / 2,
+          });
+          const measured = await command('Runtime.evaluate', {
+            expression: 'window.__navFrames',
+            awaitPromise: true,
+            returnByValue: true,
+          });
+          assert.equal(measured.exceptionDetails, undefined);
+          const sample = JSON.parse(measured.result.value);
+          await writeFile(
+            join(artifacts, 'nav-' + targetName + '.json'),
+            JSON.stringify(sample, null, 2),
+          );
+          assert.ok(
+            sample.frames.every(
+              (frame) =>
+                JSON.stringify(frame.nav) === JSON.stringify(sample.before.nav),
+            ),
+            'Every icon keeps the same geometry through the actual click: ' +
+              targetName,
+          );
+          assert.equal(
+            sample.before.nav[0][2],
+            334,
+            'The native scrollbar cannot shrink the floating bar',
+          );
+          assert.ok(
+            sample.frames.every(
+              (frame) =>
+                JSON.stringify(frame.viewport) ===
+                JSON.stringify(sample.before.viewport),
+            ),
+            'Chrome keeps the same popup dimensions',
+          );
+          assert.ok(
+            sample.frames.every((frame) => frame.scroll[0] === 0),
+            'Scrolling resets before the first painted frame: ' + targetName,
+          );
+          console.log(
+            'PASS real toolbar navigation frames ' +
+              JSON.stringify({
+                target: targetName,
+                deviceScale: sample.before.viewport[4],
+                width: sample.before.nav[0][2],
+                frames: sample.frames.length,
+              }),
+          );
+        }
+      }
+      const screenshot = await command('Page.captureScreenshot', {
+        format: 'png',
+        captureBeyondViewport: false,
+      });
+      await writeFile(
+        join(artifacts, 'dashboard-floating.png'),
+        Buffer.from(screenshot.data, 'base64'),
       );
     }
     await cdp.send('Target.closeTarget', { targetId: target.targetId });
