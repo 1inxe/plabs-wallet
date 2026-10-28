@@ -1017,3 +1017,170 @@ html:has(#root:not([hidden]) .connected-site-bar):not(:has(#root .flow-page))
 .account-current {
   color: #b4ebcd;
 }
+/* Popup sizing must not depend on its initial (often 25px) viewport. */
+html.wallet-popup {
+  width: 420px;
+  min-width: 420px;
+  max-width: 420px;
+}
+html.wallet-popup body,
+html.wallet-popup #root {
+  width: 420px;
+  min-width: 420px;
+  max-width: 420px;
+}
+.wallet-balance {
+  padding: 22px 0 24px;
+}
+.wallet-balance-label > svg {
+  color: #a3dab9;
+}
+.wallet-balance.is-private .wallet-balance-label {
+  color: #b4c6bc;
+}
+.wallet-balance-amount {
+  margin-top: 5px;
+  gap: 8px;
+}
+.wallet-balance-amount strong {
+  font-size: 48px;
+}
+.wallet-balance-amount > span {
+  font-size: 20px;
+  color: #a0aba5;
+}
+.wallet-market-summary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  margin-top: 9px;
+  min-height: 22px;
+}
+.wallet-market-change {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.wallet-market-change > span {
+  padding: 3px 6px;
+  border-radius: 5px;
+  background: #ffffff05;
+  font-size: 11px;
+}
+.wallet-market-summary > small {
+  color: #666f6b;
+  font-size: 10px;
+}
+.positive {
+  color: #9fe0b7;
+}
+.negative {
+  color: #ed8d9b;
+}
+.neutral {
+  color: #8d9490;
+}
+.market-coverage {
+  display: block;
+  margin-top: 8px;
+  font-size: 9px;
+  color: #777f79;
+}
+.wallet-actions {
+  padding-bottom: 20px;
+}
+.wallet-actions > button > span {
+  color: #bed7c7;
+  background: #1b2520;
+}
+.wallet-actions > button:hover:not(:disabled) > span {
+  background: #293a30;
+}
+.wallet-balance.is-public + .wallet-actions > button > span {
+  color: #d2d2dc;
+  background: #242428;
+}
+.wallet-asset-tabs > button[data-state='active'] {
+  color: #c9e5d3;
+}
+.wallet-asset-tabs > button[data-state='active']::after {
+  background: #addbbf;
+}
+.asset-value {
+  display: flex;
+  align-items: flex-end;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 85px;
+}
+.wallet-assets .asset-amount {
+  font-size: 15px;
+  white-space: nowrap;
+}
+.asset-amount > span {
+  font-size: 11px;
+  color: #929b95;
+  font-weight: 400;
+}
+.wallet-assets .asset-meta .asset-quantity {
+  font-size: 11px;
+  color: #8e9792;
+}
+.asset-private-mark {
+  color: #8eb89e;
+}
+.asset-price-change {
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+.asset-detail-price {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid #ffffff0b;
+  font-size: 12px;
+}
+.asset-detail-price > span {
+  margin-right: auto;
+  color: #8e9792;
+}
+.asset-detail-price > small {
+  width: 100%;
+  text-align: right;
+}
+.wallet-balance-label > button[aria-label='选择概览资产'] {
+  display: none;
+}
+
+.wallet-assets {
+  position: relative;
+}
+.wallet-asset-tabs {
+  padding-right: 70px;
+}
+.wallet-assets .asset-list-tools {
+  position: absolute;
+  top: 0;
+  right: 0;
+  height: 30px;
+  min-height: 0;
+}
+.wallet-balance.is-public ~ .wallet-actions > button > span {
+  color: #d2d2dc;
+  background: #242428;
+}
+.asset-price-change.positive {
+  color: #9fe0b7;
+}
+.asset-price-change.negative {
+  color: #ed8d9b;
+}
+.asset-price-change.neutral {
+  color: #8d9490;
+}

@@ -21,12 +21,13 @@ const server = await createServer({
         return `
 import {formatPrivacyAddress} from '/src/privacy/address.ts';
 import {syncPrivacyAssets} from '/src/privacy/sync-assets.ts';
+import {marketKey} from '/src/market/prices.ts';
 const event={addListener(){},removeListener(){}};
 const privacyAddress=formatPrivacyAddress('12'.repeat(43));
 const address='0x'+'34'.repeat(20),address2='0x'+'56'.repeat(20);
 let state={hasVault:true,unlocked:true,address,activeAccountId:'one',accountName:'主账户',accounts:[{id:'one',name:'主账户',address,privacyAddress},{id:'two',name:'备用账户',address:address2,privacyAddress:formatPrivacyAddress('78'.repeat(43))}],chainId:1,networkName:'Ethereum'};
 let privacy={hasAccount:true,unlocked:true,privacyAddress,recoveryMode:'birthday',canSync:true,automaticSync:false,expiresAt:Date.now()+3600000,status:'ready'};
-const snapshot={version:1,chainId:1,poolAddress:'0x'+'90'.repeat(20),symbol:'P20',decimals:8,privacyAddress,cursorBlock:100,targetBlock:100,syncState:'complete',totalBalanceRaw:'700000000',spendableBalanceRaw:'700000000',totalNotes:2,spendableNotes:2,pendingNotes:0,spentNotes:0,syncedAt:Date.now()};
+const snapshot={version:1,chainId:1,poolAddress:'0xFC8Bf8B613cAE37db53003EC6A306a62d5A0b7C5',symbol:'sUSDC',decimals:6,privacyAddress,cursorBlock:100,targetBlock:100,syncState:'complete',totalBalanceRaw:'7000000',spendableBalanceRaw:'7000000',totalNotes:2,spendableNotes:2,pendingNotes:0,spentNotes:0,syncedAt:Date.now()};
 window.__homeSync={tokens:0,nfts:0,paused:false,failNft:false,phase:'idle',progress:0};
 let nftSnapshot={chainId:1,items:[],syncComplete:false,syncedAt:null};
 async function syncAll(){
@@ -37,7 +38,7 @@ async function syncAll(){
 window.__homeScreen=mode=>{state={...state,hasVault:mode!=='setup',unlocked:mode==='home'};};
 window.__homeConnection=null;window.__homeSettingsWrites=[];window.__homeRequests=[];let task=null;window.__homeDecisions=[];
 window.__homeApproval=()=>{task={id:'internal-nft-task',origin:'chrome-extension://synthetic/popup.html',method:'wallet_sendPrivateNft',phase:'approval',requiresPrivacy:true,privacyExists:true,privacyUnlocked:true,canCancel:true,createdAt:Date.now(),approval:{id:'internal-nft-approval',origin:'chrome-extension://synthetic/popup.html',kind:'transaction',title:'确认发送 NFT 与 ETH Gas',createdAt:Date.now(),details:{NFT编号:'#7',收款隐私地址:privacyAddress,Gas费用上限:'0.0001 ETH'}}};};
-window.chrome={runtime:{getManifest:()=>({version:'0.9.0'}),onMessage:event,async sendMessage(request){window.__homeRequests.push(request.action);let result;switch(request.action){case'GET_STATE':result=state;break;case'GET_PERMISSIONS':result={};break;case'GET_LOCK_SETTINGS':result={walletMinutes:15,privacyMinutes:15};break;case'GET_PRIVACY_STATE':result=privacy;break;case'GET_DAPP_UI_STATE':result=task;break;case'APPROVAL_DECISION':window.__homeDecisions.push(request.approved);task=null;result=true;break;case'GET_ACTIVE_SITE_CONNECTION':result=window.__homeConnection;break;case'SET_LOCK_SETTINGS':window.__homeSettingsWrites.push(request);result=request;break;case'GET_PUBLIC_ASSETS':result=[{type:'native',symbol:'ETH',balanceRaw:'1000000000000000000',formatted:'1',decimals:18,address:null}];break;case'GET_TRANSACTION_SETTINGS':result={experimentalPrivacyWrites:true,privacyPaymentMode:'native',privacyMergeBatchSize:0};break;case'GET_VISIBLE_PRIVACY_ASSETS':result=[];break;case'GET_PRIVACY_SNAPSHOTS':result=[snapshot];break;case'SYNC_PRIVACY':return syncAll();case'GET_PRIVACY_SYNC_PROGRESS':result={chainId:1,progress:window.__homeSync.phase==='nfts'?80:window.__homeSync.phase==='complete'?100:0,status:['complete','error'].includes(window.__homeSync.phase)?window.__homeSync.phase:'syncing',message:window.__homeSync.phase==='nfts'?'正在同步 NFT':'正在同步资产'};break;case'GET_PRIVACY_ACTIVITY':result={items:[],page:1,pages:1,total:0,pageSize:20};break;case'GET_PRIVATE_NFT_ASSETS':result=nftSnapshot;break;case'SWITCH_ACCOUNT':state={...state,activeAccountId:request.accountId,address:address2,accountName:'备用账户'};privacy={...privacy,privacyAddress:state.accounts[1].privacyAddress,unlocked:false};result=state;break;default:throw Error('Unexpected wallet home request '+request.action);}return{ok:true,result};}},tabs:{query:async()=>[],onActivated:event,onUpdated:event},windows:{onFocusChanged:event},storage:{onChanged:event}};
+window.chrome={runtime:{getManifest:()=>({version:'0.9.1'}),onMessage:event,async sendMessage(request){window.__homeRequests.push(request.action);let result;switch(request.action){case'GET_STATE':result=state;break;case'GET_PERMISSIONS':result={};break;case'GET_LOCK_SETTINGS':result={walletMinutes:15,privacyMinutes:15};break;case'GET_PRIVACY_STATE':result=privacy;break;case'GET_DAPP_UI_STATE':result=task;break;case'APPROVAL_DECISION':window.__homeDecisions.push(request.approved);task=null;result=true;break;case'GET_ACTIVE_SITE_CONNECTION':result=window.__homeConnection;break;case'SET_LOCK_SETTINGS':window.__homeSettingsWrites.push(request);result=request;break;case'GET_MARKET_PRICES':result={quotes:{[marketKey(1,'native')]:{usd:2400,change24h:2,updatedAt:Date.now()},[marketKey(1,'private',snapshot.poolAddress)]:{usd:1,change24h:-0.01,updatedAt:Date.now()}},fetchedAt:Date.now(),unavailable:false,source:'DefiLlama'};break;case'GET_PUBLIC_ASSETS':result=[{type:'native',symbol:'ETH',balanceRaw:'1000000000000000000',formatted:'1',decimals:18,address:null}];break;case'GET_TRANSACTION_SETTINGS':result={experimentalPrivacyWrites:true,privacyPaymentMode:'native',privacyMergeBatchSize:0};break;case'GET_VISIBLE_PRIVACY_ASSETS':result=[];break;case'GET_PRIVACY_SNAPSHOTS':result=[snapshot];break;case'SYNC_PRIVACY':return syncAll();case'GET_PRIVACY_SYNC_PROGRESS':result={chainId:1,progress:window.__homeSync.phase==='nfts'?80:window.__homeSync.phase==='complete'?100:0,status:['complete','error'].includes(window.__homeSync.phase)?window.__homeSync.phase:'syncing',message:window.__homeSync.phase==='nfts'?'正在同步 NFT':'正在同步资产'};break;case'GET_PRIVACY_ACTIVITY':result={items:[],page:1,pages:1,total:0,pageSize:20};break;case'GET_PRIVATE_NFT_ASSETS':result=nftSnapshot;break;case'SWITCH_ACCOUNT':state={...state,activeAccountId:request.accountId,address:address2,accountName:'备用账户'};privacy={...privacy,privacyAddress:state.accounts[1].privacyAddress,unlocked:false};result=state;break;default:throw Error('Unexpected wallet home request '+request.action);}return{ok:true,result};}},tabs:{query:async()=>[],onActivated:event,onUpdated:event},windows:{onFocusChanged:event},storage:{onChanged:event}};
 await import('/src/popup/main.tsx');
 `;
       },
@@ -63,7 +64,10 @@ try {
     const page = await browser.newPage({ viewport: { width, height: 600 } }),
       errors = [];
     page.setDefaultTimeout(10000);
-    page.on('pageerror', (e) => {errors.push(e.message);console.error(e.stack);});
+    page.on('pageerror', (e) => {
+      errors.push(e.message);
+      console.error(e.stack);
+    });
     await page.route('**/*', (route) =>
       new URL(route.request().url()).origin === origin
         ? route.continue()
@@ -76,7 +80,7 @@ try {
     const shot = async (name) =>
       page.screenshot({
         path: join(artifacts, `${name}-${width}.png`),
-        fullPage: true,
+        fullPage: false,
       });
     await nav.waitFor();
     await page.waitForFunction(() => window.__homeSync.phase === 'complete');
@@ -93,13 +97,13 @@ try {
     );
     assert.equal(
       await page.locator('.wallet-balance-amount').innerText(),
-      '1\nETH',
-      'Actual native balance, no invented USD',
+      '7.00\nU',
+      'Privacy portfolio is the default and uses the underlying token quote',
     );
     assert.equal(await page.locator('.address-card').count(), 0);
     assert.equal(
       await page
-        .getByRole('tab', { name: '公开资产', exact: true })
+        .getByRole('tab', { name: '隐私资产', exact: true })
         .getAttribute('data-state'),
       'active',
     );
@@ -109,6 +113,22 @@ try {
         .isDisabled(),
       true,
       'Ethereum withdrawal remains unavailable',
+    );
+    await shot('home-private-default');
+    assert.equal(await page.locator('.asset-quantity').innerText(), '7 sUSDC');
+    assert.equal(
+      await page.locator('.asset-price-change').innerText(),
+      '-0.01%',
+    );
+    await page.getByRole('tab', { name: '公开资产', exact: true }).click();
+    assert.equal(
+      await page.locator('.wallet-balance-amount').innerText(),
+      '2,400.00\nU',
+    );
+    assert.equal(await page.locator('.asset-quantity').innerText(), '1 ETH');
+    assert.equal(
+      await page.locator('.asset-price-change').innerText(),
+      '+2.00%',
     );
     await shot('home-public');
     await page.getByRole('button', { name: '接收', exact: true }).click();
@@ -129,7 +149,7 @@ try {
     await page.getByRole('tab', { name: '隐私资产', exact: true }).click();
     assert.equal(
       await page.locator('.wallet-balance-amount').innerText(),
-      '7\nP20',
+      '7.00\nU',
     );
     await shot('home-private');
     await page.getByRole('button', { name: '隐藏余额', exact: true }).click();
@@ -216,12 +236,31 @@ try {
     await page.getByRole('button', { name: '自动锁定', exact: true }).click();
     await page.getByRole('button', { name: '保存设置', exact: true }).waitFor();
     await shot('settings-lock');
-    await page.getByRole('tablist',{name:'EVM 自动锁定'}).getByRole('tab',{name:'5m',exact:true}).click();
-    await page.getByRole('button',{name:'保存设置',exact:true}).click();
-    await page.getByRole('heading',{name:'自动锁定',exact:true}).waitFor({state:'hidden'});
-    assert.deepEqual(await page.evaluate(()=>window.__homeSettingsWrites.map(r=>[r.walletMinutes,r.privacyMinutes])),[[5,15]]);
-    assert.equal(await page.evaluate(()=>window.__homeRequests.includes('RENAME_ACCOUNT')),false,'Lock preferences cannot persist unrelated account edits');
-    await page.evaluate(()=>window.scrollTo(0,document.body.scrollHeight));
+    await page
+      .getByRole('tablist', { name: 'EVM 自动锁定' })
+      .getByRole('tab', { name: '5m', exact: true })
+      .click();
+    await page.getByRole('button', { name: '保存设置', exact: true }).click();
+    await page
+      .getByRole('heading', { name: '自动锁定', exact: true })
+      .waitFor({ state: 'hidden' });
+    assert.deepEqual(
+      await page.evaluate(() =>
+        window.__homeSettingsWrites.map((r) => [
+          r.walletMinutes,
+          r.privacyMinutes,
+        ]),
+      ),
+      [[5, 15]],
+    );
+    assert.equal(
+      await page.evaluate(() =>
+        window.__homeRequests.includes('RENAME_ACCOUNT'),
+      ),
+      false,
+      'Lock preferences cannot persist unrelated account edits',
+    );
+    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
     await screen('藏品');
     for (const decision of [false, true]) {
       await page.evaluate(() => window.__homeApproval());
@@ -250,11 +289,25 @@ try {
       true,
     ]);
     await screen('资产');
-    await page.waitForFunction(()=>scrollY===0);
-    await page.evaluate(()=>window.__homeConnection={origin:'https://app.plabs.online',host:'app.plabs.online',tabId:1,chainId:1,unlocked:true,address:'0x'+'34'.repeat(20)});
+    await page.waitForFunction(() => scrollY === 0);
+    await page.evaluate(
+      () =>
+        (window.__homeConnection = {
+          origin: 'https://app.plabs.online',
+          host: 'app.plabs.online',
+          tabId: 1,
+          chainId: 1,
+          unlocked: true,
+          address: '0x' + '34'.repeat(20),
+        }),
+    );
     await page.locator('.connected-site-bar').waitFor();
-    const strip=await page.locator('.connected-site-bar').boundingBox(),navigation=await nav.boundingBox();
-    assert.ok(Math.abs(strip.y+strip.height-navigation.y)<1,'Connection strip sits above navigation without overlapping');
+    const strip = await page.locator('.connected-site-bar').boundingBox(),
+      navigation = await nav.boundingBox();
+    assert.ok(
+      Math.abs(strip.y + strip.height - navigation.y) < 1,
+      'Connection strip sits above navigation without overlapping',
+    );
     await shot('home-connected');
     await page.getByRole('button', { name: '选择账户', exact: true }).click();
     await page
@@ -280,8 +333,8 @@ try {
       .waitFor();
     assert.equal(
       await page.locator('.wallet-balance-amount strong').innerText(),
-      '—',
-      'Locked balance is unknown, never a fake zero',
+      '••••',
+      'Locked privacy valuation stays masked',
     );
     await shot('privacy-locked');
     await page

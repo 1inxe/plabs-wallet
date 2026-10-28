@@ -1,3 +1,4 @@
+import { createMarketPrices } from './market/prices';
 import { consentStorageKey, consentStoragePrefix, sealConsent, openConsent } from './dapp-api/read-consent-store';
 import { parseIntent as parseDexIntent, amounts as dexAmounts } from './privacy/dex/protocol';
 import { journalId as dexJournalId } from './privacy/dex/journal';
@@ -2576,6 +2577,8 @@ const dispatchDappRequest = async (request: ProviderRequest, origin: string) => 
   }
 };
 
+const marketPrices = createMarketPrices();
+
 const dispatchRuntimeMessage = async (message: Record<string, unknown>, sender: chrome.runtime.MessageSender) => {
   const pageUrl = sender.url ? new URL(sender.url) : null;
   const isExtensionPage = sender.id === chrome.runtime.id && pageUrl?.protocol === 'chrome-extension:' && pageUrl.host === chrome.runtime.id &&
@@ -2765,6 +2768,9 @@ const dispatchRuntimeMessage = async (message: Record<string, unknown>, sender: 
       return publicTransfers.submit(String(message.id ?? ''));
     case 'GET_PUBLIC_TRANSFER_STATUS':
       return publicTransfers.status();
+    case 'GET_MARKET_PRICES':
+      requireUnlocked();
+      return marketPrices(Number(message.chainId), message.contracts ?? []);
     case 'GET_PUBLIC_ASSETS':
       return publicAssets();
     case 'ADD_PUBLIC_ASSET':

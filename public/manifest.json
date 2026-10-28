@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "PLabs Privacy Wallet",
   "short_name": "PLabs Wallet",
-  "version": "0.9.0",
+  "version": "0.9.1",
   "description": "Self-custodial EVM wallet with an embedded PLabs privacy asset engine.",
   "icons": {
     "16": "icons/plabs-16.png",
@@ -49,7 +49,8 @@
     "https://mainnet.base.org/*",
     "https://arbitrum-one-rpc.publicnode.com/*",
     "https://arb1.arbitrum.io/rpc/*",
-    "https://media.plabs.online/*"
+    "https://media.plabs.online/*",
+    "https://coins.llama.fi/*"
   ],
   "content_scripts": [
     {

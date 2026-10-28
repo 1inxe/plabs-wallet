@@ -17,15 +17,15 @@ export function WalletAssets({
   return (
     <Tabs.Root
       className="wallet-assets"
-      defaultValue="public"
+      defaultValue="private"
       value={value}
       onValueChange={(next) => {
         if (next === 'public' || next === 'private') onChange?.(next);
       }}
     >
       <Tabs.List className="wallet-asset-tabs" aria-label="资产类型">
-        <Tabs.Trigger value="public">公开资产</Tabs.Trigger>
         <Tabs.Trigger value="private">隐私资产</Tabs.Trigger>
+        <Tabs.Trigger value="public">公开资产</Tabs.Trigger>
         {nfts && <Tabs.Trigger value="nfts">NFT</Tabs.Trigger>}
       </Tabs.List>
       <Tabs.Content value="public" className="wallet-asset-content">
