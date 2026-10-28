@@ -1,3 +1,4 @@
+import { readRpcHistoryPage } from './rpc-history-page';
 import { NftTransferEngine } from './nft/transfer';
 import { readJsonResponse } from '../shared/network-response';
 import { DEFAULT_MERGE_BATCH_SIZE, MERGE_WALLET_MAX_INPUTS, validMergeBatchSize } from './merge-settings';
@@ -868,6 +869,7 @@ const getLogsPage = async ({
   return { logs: logs.map(decodePrivacyLog).filter(Boolean) as Array<Record<string, unknown>>, checkpoint: after };
 };
 
+const rpcLogSpans = new Map<ChainId, number>();
 const getHistoryPage = async ({
   chainId,
   poolAddress,
@@ -919,14 +921,12 @@ const getHistoryPage = async ({
       toBlock: scannedTo,
     };
   } catch {
-    const toBlock = Math.min(targetBlock, afterBlock + manifest.maxGetLogsSpan);
-    const page = await getLogsPage({
-      rpcUrls: network.rpcUrls,
-      poolAddress,
-      fromBlock: afterBlock + 1,
-      toBlock,
+    const page = await readRpcHistoryPage({
+      afterBlock, targetBlock, maxSpan: manifest.maxGetLogsSpan, knownSpan: rpcLogSpans.get(chainId),
+      read: (fromBlock, toBlock) => getLogsPage({ rpcUrls: network.rpcUrls, poolAddress, fromBlock, toBlock }),
     });
-    return { ...page, toBlock };
+    rpcLogSpans.set(chainId, page.span);
+    return { ...page.value, toBlock: page.toBlock };
   }
 };
 

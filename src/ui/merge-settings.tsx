@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { Settings } from 'lucide-react';
+import { ChevronRight, GitMerge, Settings } from 'lucide-react';
 import { callWallet } from '../shared/runtime';
 import { NETWORKS } from '../shared/networks';
 import type { ChainId, PrivacyMergeLimits, TransactionSettings } from '../shared/types';
@@ -7,8 +7,8 @@ import { DEFAULT_MERGE_BATCH_SIZE, MERGE_WALLET_MAX_INPUTS } from '../privacy/me
 import { Button, Field, Input, PageView } from './primitives';
 import { Segments } from './wallet-design';
 
-export function MergeSettingsControl({ chainId, poolAddress, compact = false, onSaved }: {
-  chainId: ChainId; poolAddress?: string; compact?: boolean; onSaved?: () => void;
+export function MergeSettingsControl({ chainId, poolAddress, compact = false, menu = false, onSaved }: {
+  chainId: ChainId; poolAddress?: string; compact?: boolean; menu?: boolean; onSaved?: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const [automatic, setAutomatic] = useState(false);
@@ -43,8 +43,8 @@ export function MergeSettingsControl({ chainId, poolAddress, compact = false, on
     } catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); }
     finally { setBusy(false); }
   };
-  const trigger = <Button size="small" onClick={() => setOpen(true)}><Settings size={14} />合并设置</Button>;
-  return <>{compact ? trigger : <section className="panel"><div className="row-between"><div><h2>凭证合并设置</h2><small>设置每批合并数量</small></div>{trigger}</div></section>}
+  const trigger = menu ? <button className="settings-menu-item" onClick={()=>setOpen(true)}><GitMerge size={18}/><span>凭证合并</span><ChevronRight size={16}/></button> : <Button size="small" onClick={() => setOpen(true)}><Settings size={14} />合并设置</Button>;
+  return <>{compact || menu ? trigger : <section className="panel"><div className="row-between"><div><h2>凭证合并设置</h2><small>设置每批合并数量</small></div>{trigger}</div></section>}
     <PageView open={open} busy={busy} onOpenChange={setOpen} title="凭证合并设置" description="全局偏好 · 仅用于新合并计划">
       <div className="panel form-stack"><h2>每笔合并多少凭证</h2><p className="micro text-muted">可跨页选择，按每批数量合并。</p></div>
       <form className="form-stack" onSubmit={save}>

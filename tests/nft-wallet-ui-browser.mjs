@@ -26,7 +26,7 @@ const server = await createServer({
         return `
     import React from 'react'; import { createRoot } from 'react-dom/client';
     import { WalletAssets } from '/src/ui/wallet-assets.tsx';
-    import { PrivateNfts } from '/src/ui/private-nfts.tsx'; import '/src/ui/index.css';
+    import { PrivateNfts } from '/src/ui/private-nfts.tsx'; import '/src/ui/index.css'; import '/src/ui/wallet-theme.css';
     const confirmed={id:'synthetic-owned',chainId:1,type:'perc721',poolAddress:'0x'+'12'.repeat(20),name:'Jubjub Bird',symbol:'JUBJUB',tokenId:'7',txHash:'0x'+'34'.repeat(32),blockNumber:10,state:'confirmed',source:'chain'};
     let snapshot={chainId:1,items:[confirmed,{...confirmed,id:'synthetic-pending',tokenId:'8',state:'pending'}],syncedAt:Date.now(),syncComplete:true};
     window.__nftUi={syncs:0,sends:[],reject:true,spend(){snapshot={...snapshot,items:[]};},fail(){snapshot={...snapshot,error:'Synthetic RPC outage',syncComplete:false};}};
@@ -149,7 +149,7 @@ try {
       return route.abort();
     });
     await page.goto(`${origin}/nft-ui-fixture`);
-    await page.getByRole('tab', { name: '隐私资产', exact: true }).waitFor();
+    await page.getByRole('tab', { name: '隐私资产', exact: true }).click();
     assert.equal(
       await page.getByText('隐私代币 · P20 / sUSDC').isVisible(),
       true,
@@ -244,10 +244,9 @@ try {
     await page
       .getByRole('button', { name: '同步隐私 NFT', exact: true })
       .click();
-    await page
-      .getByRole('alert')
-      .filter({ hasText: 'Synthetic RPC outage' })
-      .waitFor();
+    await page.locator('.sync-notice').waitFor();
+    assert.match(await page.locator('.sync-notice pre').textContent(),/Synthetic RPC outage/);
+    assert.equal(await page.locator('.sync-notice pre').isVisible(),false);
     assert.equal(
       await page
         .getByRole('button', { name: '查看 Jubjub Bird #7', exact: true })

@@ -7,6 +7,7 @@ import { Button, IconButton, PageView } from './primitives';
 import { CopyButton } from './wallet-design';
 import { NftArtwork } from './nft-artwork';
 import { parsePrivacyAddress, formatPrivacyAddress } from '../privacy/address';
+import { SyncNotice } from './sync-notice';
 import { EmptyState } from './wallet-design';
 
 type Snapshot = {
@@ -57,7 +58,7 @@ export function PrivateNfts({
   const read = async () => {
     try {
       const value = await callWallet<Snapshot>('GET_PRIVATE_NFT_ASSETS');
-      if (active.current) setSnapshot(value);
+      if (active.current) { setSnapshot(value); setError(''); }
     } catch (cause) {
       if (active.current) setError(walletErrorMessage(cause));
     }
@@ -165,10 +166,8 @@ export function PrivateNfts({
               正在同步…
             </p>
           )}
-          {(snapshot?.error || error) && (
-            <p className="private-nft-error" role="alert">
-              {error || snapshot?.error}
-            </p>
+          {(error || (!managed && snapshot?.error)) && (
+            <SyncNotice error={error || snapshot!.error!} busy={isSyncing} onRetry={()=>void (managed ? read() : sync())}/>
           )}
         </>
       )}

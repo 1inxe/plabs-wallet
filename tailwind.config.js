@@ -4,13 +4,13 @@ export default {
   theme: {
     extend: {
       colors: {
-        canvas: '#101419',
-        surface: '#181c21',
-        raised: '#1c2025',
-        line: '#29352f',
-        ink: '#e0e2ea',
-        muted: '#bbcabf',
-        mint: '#4edea3',
+        canvas: '#0c0c0e',
+        surface: '#19191c',
+        raised: '#202024',
+        line: '#303035',
+        ink: '#f3f3f5',
+        muted: '#909096',
+        mint: '#b4ebcd',
         amber: '#ffb95f',
         danger: '#ff7885',
       },

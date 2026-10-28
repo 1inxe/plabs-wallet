@@ -98,16 +98,19 @@ function ActivityDetail({ id, chainId, hidden, onBack }: { id: string; chainId: 
     </>}
   </PageView>;
 }
-function HistoryPage({ chainId, poolAddress, symbol, hidden, onClose }: { chainId: ChainId; poolAddress?: string; symbol?: string; hidden: boolean; onClose: () => void }) {
+export function ActivityHistoryContent({ chainId, poolAddress, hidden = false }: { chainId: ChainId; poolAddress?: string; hidden?: boolean }) {
   const [selected, setSelected] = useState<string | null>(null);
   const { data, loading, error, refresh } = useActivity({ chainId, poolAddress, all: true });
-  return <PageView open onOpenChange={onClose} title={symbol ? `${symbol} 操作记录` : '操作历史'} description={`${NETWORKS[chainId].name} · 本机记录`}>
+  return <>
     <div className="activity-history-view"><div className="activity-toolbar"><small>{data ? `${data.total} 条记录` : '按时间排序'}</small><IconButton label="刷新历史记录" disabled={loading} onClick={refresh}><RefreshCw size={16} className={loading ? 'animate-spin' : ''}/></IconButton></div>
     {error && <p role="alert" className="micro text-danger">{error}</p>}
     {loading && !data ? <p className="empty-state">正在读取记录…</p> : data?.items.length ? <ActivityTimeline items={data.items} renderRow={item => <ActivityRow item={item} hidden={hidden} onSelect={setSelected}/>}/> : <div className="empty-state"><History size={28}/><p>暂无本机操作记录</p></div>}
     </div>
     {selected && <ActivityDetail id={selected} chainId={chainId} hidden={hidden} onBack={() => setSelected(null)}/>}
-  </PageView>;
+  </>;
+}
+function HistoryPage({chainId,poolAddress,symbol,hidden,onClose}:{chainId:ChainId;poolAddress?:string;symbol?:string;hidden:boolean;onClose:()=>void}) {
+  return <PageView open onOpenChange={onClose} title={symbol ? `${symbol} 操作记录` : '操作历史'} description={`${NETWORKS[chainId].name} · 本机记录`}><ActivityHistoryContent chainId={chainId} poolAddress={poolAddress} hidden={hidden}/></PageView>;
 }
 export function ActivitySection({ chainId, poolAddress, symbol, hidden = false }: { chainId: ChainId; poolAddress?: string; symbol?: string; hidden?: boolean }) {
   const [all, setAll] = useState(false);

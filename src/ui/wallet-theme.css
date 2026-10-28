@@ -1,0 +1,1019 @@
+/* One visual language for the wallet, its forms, and transaction reviews. */
+:root {
+  --wallet-canvas: #0c0c0e;
+  --wallet-surface: #19191c;
+  --wallet-line: #ffffff0f;
+  --wallet-accent: #b4ebcd;
+  --wallet-width: 420px;
+  color: #f3f3f5;
+  background: var(--wallet-canvas);
+}
+html {
+  width: 420px;
+  min-width: 0;
+  max-width: 100vw;
+}
+body,
+#root {
+  width: 100%;
+  min-width: 0;
+  max-width: 420px;
+  color: #f3f3f5;
+}
+html,
+body,
+#root,
+.wallet-shell,
+.route-screen,
+.flow-page,
+.privacy-unlock-page {
+  background: var(--wallet-canvas);
+}
+.wallet-shell,
+.route-screen,
+.flow-page {
+  max-width: 420px;
+}
+button,
+input,
+textarea {
+  -webkit-tap-highlight-color: transparent;
+}
+button {
+  touch-action: manipulation;
+}
+button:focus-visible,
+a:focus-visible {
+  outline-color: var(--wallet-accent);
+}
+button:disabled {
+  opacity: 0.35;
+}
+small,
+.text-muted {
+  color: #909096;
+}
+.text-mint,
+.text-cyan,
+.cyan {
+  color: var(--wallet-accent);
+}
+.bg-mint {
+  background-color: var(--wallet-accent);
+}
+.border-line {
+  border-color: #ffffff14;
+}
+.bg-raised,
+.bg-surface {
+  background-color: #202024;
+}
+.text-ink {
+  color: #f3f3f5;
+}
+.page-body {
+  padding: 20px;
+  gap: 18px;
+}
+h1 {
+  letter-spacing: -0.035em;
+}
+.panel {
+  background: var(--wallet-surface);
+  border: 1px solid #ffffff08;
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: none;
+}
+.nested-panel,
+.step-card,
+.check-row {
+  background: #222225;
+  border-radius: 12px;
+}
+.form-stack {
+  gap: 18px;
+}
+.primary-cta,
+.primary-cta:hover:not(:disabled) {
+  background: var(--wallet-accent);
+  border-color: transparent;
+  color: #153123;
+  box-shadow: none;
+  border-radius: 13px;
+  font-size: 14px;
+  min-height: 46px;
+}
+.primary-cta:hover:not(:disabled) {
+  background: #c7f2da;
+}
+.primary-cta:disabled {
+  background: #29292d;
+  color: #8b8b92;
+  opacity: 0.65;
+}
+input:not([type='checkbox']),
+textarea,
+.nft-send-form textarea {
+  background: #141417;
+  border-color: #ffffff1c;
+  color: #f3f3f5;
+  border-radius: 12px;
+}
+input:focus,
+textarea:focus,
+.recipient-field:focus-within {
+  border-color: #b4ebcd80;
+  box-shadow: 0 0 0 2px #b4ebcd09;
+}
+input::placeholder,
+textarea::placeholder {
+  color: #6c6c73;
+}
+input[type='checkbox'] {
+  accent-color: var(--wallet-accent);
+}
+[data-state='checked'][role='switch'] {
+  background: #77b994;
+}
+[role='switch'] {
+  background: #3d3d44;
+}
+.account-header {
+  height: 76px;
+  padding: 14px 20px;
+  gap: 10px;
+  border: 0;
+  background: #0c0c0ef5;
+  backdrop-filter: blur(18px);
+}
+.account-header .account-pill {
+  max-width: none;
+  flex: 1;
+  padding: 0;
+  gap: 10px;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+}
+.account-header .account-pill strong {
+  max-width: 115px;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 21px;
+}
+.account-header .account-pill small {
+  color: #85858f;
+  font-size: 10px;
+  line-height: 15px;
+}
+.account-avatar {
+  display: inline-flex;
+  width: 35px;
+  height: 35px;
+  flex-shrink: 0;
+  overflow: hidden;
+  border-radius: 12px;
+}
+.account-avatar svg {
+  width: 100%;
+  height: 100%;
+}
+.account-header .network-pill {
+  flex-shrink: 0;
+  padding-left: 9px;
+  background: #1c1c20;
+  border: 0;
+  border-radius: 18px;
+}
+.account-header .network-pill button {
+  height: 31px;
+  font-size: 11px;
+  padding-right: 10px;
+  color: #dddde2;
+}
+.account-header .status-dot.amber {
+  background: #c9a16b;
+  box-shadow: none;
+}
+.account-header > .copy-button {
+  width: 27px;
+  height: 30px;
+  flex-shrink: 0;
+  color: #a5a5ae;
+}
+.copy-button {
+  background: #28282d;
+  color: #bdbdc5;
+  border-radius: 8px;
+}
+.copy-button.compact {
+  background: transparent;
+}
+.copy-button:hover {
+  color: #e6e6eb;
+}
+.dashboard-body {
+  padding: 0 20px 22px;
+  gap: 0;
+}
+.wallet-balance {
+  padding: 28px 0 26px;
+  text-align: center;
+}
+.wallet-balance-label {
+  min-height: 25px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  color: #93939d;
+  font-size: 12px;
+}
+.wallet-balance-label > button {
+  width: 26px;
+  height: 26px;
+  padding: 4px;
+  color: #85858e;
+}
+.wallet-balance-label > button[aria-label='选择概览资产'] {
+  width: auto;
+  height: 24px;
+  padding: 0 6px;
+  border: 0;
+  background: #1c1c20;
+  color: #b9b9c1;
+  font-size: 11px;
+}
+.wallet-balance-amount {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 5px;
+  line-height: 1.3;
+}
+.wallet-balance-amount strong {
+  font-size: 54px;
+  font-weight: 500;
+  letter-spacing: -0.055em;
+  font-variant-numeric: tabular-nums;
+}
+.wallet-balance-amount > span {
+  color: #92929c;
+  font-size: 19px;
+  font-weight: 400;
+}
+.wallet-balance-amount.is-long strong {
+  font-size: 35px;
+}
+.wallet-actions {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  padding: 0 0 26px;
+}
+.wallet-actions > button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 9px;
+  background: none;
+  padding: 0;
+  border: 0;
+  border-radius: 14px;
+}
+.wallet-actions > button > span {
+  width: 51px;
+  height: 51px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: #e2e2e9;
+  background: #242428;
+  transition:
+    background 0.15s,
+    transform 0.15s;
+}
+.wallet-actions > button:hover:not(:disabled) > span {
+  background: #333338;
+  transform: translateY(-2px);
+}
+.wallet-actions > button strong {
+  font-size: 12px;
+  font-weight: 500;
+  color: #c6c6ce;
+}
+.wallet-actions > button:disabled {
+  opacity: 0.3;
+}
+.wallet-health {
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0 0 20px;
+  padding: 9px 0;
+  border-top: 1px solid #ffffff0b;
+  border-bottom: 1px solid #ffffff0b;
+}
+.wallet-health button {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  color: #85858f;
+  padding: 0;
+}
+.wallet-health .privacy-access svg {
+  color: #93b6a1;
+}
+.wallet-health .has-issue {
+  color: #cbb38b;
+}
+.sync-notice {
+  margin: -9px 0 15px;
+  color: #cbb38b;
+  font-size: 11px;
+}
+.sync-notice summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  list-style: none;
+  cursor: pointer;
+  padding: 6px 0;
+}
+.sync-notice summary::-webkit-details-marker {
+  display: none;
+}
+.sync-notice summary svg {
+  width: 13px;
+  height: 13px;
+}
+.sync-notice summary > span:last-child {
+  margin-left: auto;
+  font-size: 10px;
+  color: #94949d;
+}
+.sync-notice > div {
+  padding: 12px;
+  background: #1e1b17;
+  border-radius: 10px;
+  margin-top: 5px;
+}
+.sync-notice p {
+  color: #b7aba0;
+}
+.sync-notice pre {
+  font-size: 10px;
+  color: #a69c92;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 100px;
+  overflow-y: auto;
+  margin: 10px 0;
+}
+.sync-notice > div > button {
+  color: #e3c69d;
+  padding: 4px 0;
+}
+.wallet-assets {
+  margin: 0;
+  gap: 8px;
+}
+.wallet-asset-tabs {
+  gap: 24px;
+  border: 0;
+  padding: 0;
+  background: none;
+}
+.wallet-asset-tabs > button {
+  flex: 0 0 auto;
+  padding: 0 0 10px;
+  height: 35px;
+  color: #767680;
+  font-size: 15px;
+  font-weight: 600;
+}
+.wallet-asset-tabs > button[data-state='active'] {
+  background: none;
+  color: #f3f3f5;
+  box-shadow: none;
+}
+.wallet-asset-tabs > button[data-state='active']::after {
+  left: 0;
+  right: 0;
+  background: #efeff2;
+  height: 2px;
+}
+.wallet-asset-content {
+  gap: 12px;
+}
+.wallet-asset-content > .panel {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+}
+.wallet-assets .asset-list-tools {
+  min-height: 26px;
+  color: #777781;
+}
+.text-toggle {
+  font-size: 10px;
+  color: #8c8c96;
+}
+.wallet-assets .asset-row,
+.asset-row {
+  padding: 15px 0;
+  margin: 0;
+  gap: 12px;
+  border: 0;
+  border-bottom: 1px solid #ffffff08;
+  border-radius: 0;
+  background: transparent;
+}
+.asset-symbol,
+.wallet-assets .asset-symbol {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  font-size: 11px;
+  font-weight: 600;
+  border: 0;
+}
+.asset-symbol.native-coin {
+  background: #6875df;
+  color: white;
+}
+.asset-symbol.private-coin {
+  color: #bee5cc;
+  background: #2a3931;
+}
+.wallet-assets .asset-meta strong,
+.asset-meta strong {
+  font-size: 14px;
+  font-weight: 600;
+  color: #f3f3f5;
+}
+.wallet-assets .asset-meta small,
+.asset-meta small {
+  color: #85858f;
+  font-size: 10px;
+  line-height: 16px;
+  margin-top: 3px;
+}
+.wallet-assets .asset-amount,
+.asset-amount {
+  color: #e5e5eb;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+.wallet-assets .add-asset,
+.add-asset {
+  border: 0;
+  margin-top: 12px;
+  padding: 12px;
+  border-radius: 10px;
+  color: #8a8a96;
+  font-size: 11px;
+}
+.add-asset:hover {
+  background: #19191d;
+}
+.asset-row .tiny-badge {
+  background: #ffffff09;
+  color: #85858f;
+  font-size: 8px;
+}
+.wallet-navigation {
+  position: fixed;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  max-width: 420px;
+  height: 67px;
+  padding: 8px 12px 7px;
+  z-index: 30;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  background: #111113f5;
+  backdrop-filter: blur(20px);
+  border-top: 1px solid #ffffff0b;
+}
+.wallet-navigation button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  color: #74747f;
+  font-size: 10px;
+  border-radius: 12px;
+}
+.wallet-navigation button[aria-current='page'] {
+  color: var(--wallet-accent);
+}
+.wallet-navigation button:hover {
+  background: #ffffff04;
+}
+.wallet-dashboard {
+  padding-bottom: 67px;
+}
+.wallet-shell:has(.flow-page) > .wallet-navigation {
+  display: none;
+}
+.connected-site-bar {
+  bottom: 67px;
+  max-width: 420px;
+  height: 49px;
+  background: #1b1b1f;
+  border-color: #ffffff0b;
+  box-shadow: none;
+}
+html:has(#root:not([hidden]) .connected-site-bar):not(:has(#root .flow-page))
+  .wallet-dashboard {
+  padding-bottom: 116px;
+}
+.connected-site-icon,
+.connected-site-disconnect {
+  background: #2c2c32;
+  border: 0;
+}
+.screen-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 44px;
+  margin: 10px 0 20px;
+}
+.screen-title h1 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 600;
+  color: #f3f3f5;
+}
+.screen-title > span {
+  font-size: 10px;
+  color: #85858f;
+}
+.private-nft-assets {
+  padding: 0;
+  border: 0;
+  background: none;
+}
+.private-nft-grid {
+  gap: 16px 12px;
+}
+.private-nft-card {
+  border: 0;
+  border-radius: 12px;
+  background: #19191d;
+  box-shadow: none;
+}
+.private-nft-art,
+.nft-art-placeholder {
+  background: #232329;
+}
+.private-nft-copy {
+  padding: 11px 12px;
+  gap: 4px;
+}
+.private-nft-copy > strong {
+  color: #e5e5eb;
+  font-size: 12px;
+}
+.private-nft-copy > span,
+.private-nft-copy small {
+  color: #8f8f9b;
+}
+.nft-detail-art {
+  border: 0;
+  border-radius: 16px;
+}
+.nft-pending-badge {
+  border-radius: 6px;
+  background: #19191ddd;
+}
+.privacy-onboarding {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 30px 16px;
+  color: #80808b;
+  text-align: center;
+}
+.privacy-onboarding h2 {
+  color: #e4e4e9;
+  font-size: 16px;
+  font-weight: 500;
+  margin-top: 6px;
+}
+.privacy-onboarding p {
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+.privacy-onboarding .primary-cta {
+  min-width: 190px;
+}
+.text-link {
+  font-size: 11px;
+  color: #9c9ca6;
+  padding: 8px;
+}
+.empty-state {
+  padding: 48px 12px;
+  color: #7f7f8b;
+  font-size: 12px;
+}
+.empty-state svg {
+  color: #898995;
+}
+.page-header {
+  height: 70px;
+  background: #0c0c0ef5;
+  border-bottom: 1px solid #ffffff09;
+  padding: 12px 16px;
+}
+.page-heading strong {
+  color: #f3f3f5;
+  font-size: 16px;
+  font-weight: 500;
+}
+.page-heading small {
+  color: #85858f;
+  font-family: inherit;
+  font-size: 10px;
+  margin-top: 2px;
+  letter-spacing: 0;
+}
+.route-back {
+  background: transparent;
+  border: 0;
+  color: #b4b4be;
+  border-radius: 50%;
+}
+.page-body .route-card,
+.selection-option,
+.account-option {
+  background: #202024;
+  border: 0;
+  border-radius: 12px;
+}
+.route-card strong,
+.selection-option strong {
+  font-weight: 500;
+}
+.route-card small,
+.selection-option small {
+  color: #8c8c97;
+}
+.account-option {
+  margin-top: 10px;
+  padding: 14px 12px;
+}
+.compact-address-card {
+  background: #17171b;
+  border-radius: 0 0 12px 12px;
+  margin: 0 0 8px;
+  padding: 4px 12px 8px;
+}
+.address-tag,
+.address-tag.public {
+  background: #ffffff05;
+  border-color: #ffffff12;
+  color: #a6a6b1;
+}
+.tiny-badge,
+.tiny-badge.public {
+  color: #b2c3b8;
+  background: #b4ebcd0d;
+}
+.address-row + .address-row,
+.note-summary-row,
+.send-review-row {
+  border-color: #ffffff0d;
+}
+.address-display,
+.recipient-field,
+.amount-hint,
+.token-options button {
+  background: #131316;
+  border-color: #ffffff12;
+}
+.token-options button.selected {
+  background: #242429;
+  border-color: #b4ebcd50;
+}
+.amount-input input {
+  border: 0;
+  background: transparent;
+}
+.amount-input strong {
+  color: #d8d8e0;
+}
+.percentage-row button {
+  background: #29292e;
+  color: #adadb9;
+  font-family: inherit;
+}
+.percentage-row button:last-child {
+  background: #b4ebcd12;
+  color: #b4ebcd;
+}
+.send-asset-list {
+  display: grid;
+  gap: 10px;
+}
+.send-asset-list > button {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  background: #1c1c20;
+  border-radius: 13px;
+  text-align: left;
+}
+.send-asset-list > button > strong {
+  flex: 1;
+  font-size: 14px;
+}
+.send-asset-list > button > span:last-child {
+  font-size: 13px;
+  color: #9f9fa9;
+}
+.settings-body {
+  gap: 24px;
+}
+.settings-body .screen-title {
+  margin: 0;
+}
+.section-title,
+.section-title.cyan,
+.section-title.amber,
+.section-title.neutral {
+  color: #9696a1;
+  font-size: 12px;
+  font-weight: 500;
+  margin-bottom: 10px;
+}
+.experimental-panel {
+  background: #19191c;
+  border-color: #ffffff08;
+}
+.setting-label,
+.experimental-panel p {
+  color: #9696a1;
+}
+.segments {
+  background: #111114;
+  border-radius: 10px;
+  padding: 4px;
+}
+.segments .selected {
+  background: #303036;
+  color: #f3f3f5;
+  box-shadow: none;
+}
+.settings-body .segments .selected {
+  background: #b4ebcd;
+  color: #183326;
+}
+.network-list > div + div,
+.permission-row {
+  border-color: #ffffff0d;
+}
+.settings-body .row-between strong {
+  font-size: 13px;
+}
+.settings-body .row-between small {
+  margin-top: 4px;
+  line-height: 17px;
+}
+.activity-row {
+  background: none;
+  border-color: #ffffff0c;
+}
+.activity-description > strong {
+  color: #e7e7ed;
+}
+.activity-description > small,
+.activity-toolbar > small {
+  color: #80808c;
+}
+.activity-icon {
+  background: #242429;
+  color: #bfc2ce;
+  border-radius: 50%;
+}
+.activity-status {
+  border-radius: 5px;
+}
+.dashboard-activity {
+  gap: 0;
+  padding-top: 0;
+}
+.dashboard-activity .screen-title {
+  margin-bottom: 12px;
+}
+.dashboard-activity .activity-history-view {
+  height: calc(100dvh - 220px);
+  min-height: 240px;
+}
+.wallet-dashboard:has(.connected-site-bar)
+  .dashboard-activity
+  .activity-history-view {
+  height: calc(100dvh - 269px);
+}
+.activity-virtual-scroll {
+  border-radius: 0;
+}
+.activity-virtual-item .activity-row {
+  padding-inline: 0;
+}
+.unlock-page {
+  padding: 20px 26px 32px;
+}
+.unlock-hero {
+  padding-top: 55px;
+}
+.unlock-hero h1 {
+  margin-top: 24px;
+  font-size: 25px;
+  font-weight: 500;
+}
+.unlock-badge {
+  color: #a3a3af;
+  background: none;
+  font-family: inherit;
+  font-size: 11px;
+  margin-top: 6px;
+}
+.unlock-form {
+  margin-top: 34px;
+  gap: 12px;
+}
+.unlock-form .primary-cta {
+  margin-top: 16px;
+}
+.password-field input {
+  background: #1b1b1f;
+  border: 1px solid #ffffff10;
+}
+.version-pill {
+  color: #82828e;
+  background: none;
+  padding-left: 0;
+}
+.brand-orbit {
+  filter: none;
+}
+.hero-symbol,
+.hero-symbol.small {
+  background: #b4ebcd0a;
+  border-color: #b4ebcd16;
+  color: #b4ebcd;
+  box-shadow: none;
+}
+.intro p {
+  color: #8e8e9a;
+}
+.brand-lock {
+  color: #b4ebcd;
+  background: #232328;
+}
+.explorer-link {
+  color: #b4ebcd;
+}
+.approval-actions {
+  background: #0c0c0e;
+}
+.approval-field {
+  border-color: #ffffff10;
+}
+.dapp-origin,
+.dapp-unlock-notice {
+  background: #1c221e;
+  border-color: #ffffff12;
+}
+@media (max-width: 379px) {
+  .account-header {
+    padding-inline: 18px;
+    gap: 7px;
+  }
+  .account-header .account-pill strong {
+    max-width: 85px;
+  }
+  .dashboard-body,
+  .page-body {
+    padding-inline: 18px;
+  }
+  .wallet-balance {
+    padding-top: 24px;
+  }
+  .wallet-balance-amount strong {
+    font-size: 50px;
+  }
+  .wallet-balance-amount.is-long strong {
+    font-size: 30px;
+  }
+}
+/* Settings are destinations, rather than a page of expanded forms. */
+.settings-body {
+  gap: 0;
+  padding-top: 6px;
+}
+.settings-body > .screen-title {
+  margin-bottom: 20px;
+}
+.settings-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  min-height: 53px;
+  width: 100%;
+  text-align: left;
+  border-bottom: 1px solid #ffffff09;
+  color: #e2e2e9;
+}
+.settings-menu-item > svg:first-child {
+  width: 18px;
+  height: 18px;
+  color: #92929d;
+}
+.settings-menu-item > span {
+  flex: 1;
+  font-size: 13px;
+}
+.settings-menu-item > svg:last-child {
+  color: #61616c;
+}
+.settings-menu-item:hover {
+  color: #b4ebcd;
+}
+.settings-lock {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 14px;
+  margin-top: 18px;
+  border-radius: 12px;
+  background: #202024;
+  color: #adadb7;
+  font-size: 12px;
+}
+.sync-notice > div > button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.page-back {
+  background: transparent;
+  border-radius: 50%;
+  color: #aaaab6;
+}
+.page-back:hover {
+  background: #ffffff08;
+}
+.note-counts > div,
+.note-item {
+  background: #1c1c20;
+  border-color: #ffffff10;
+}
+.notes-filters {
+  background: #151518;
+}
+.notes-filters button[aria-pressed='true'],
+.note-item.selected {
+  background: #b4ebcd12;
+  border-color: #b4ebcd40;
+  color: #b4ebcd;
+}
+
+.account-list-item,
+.account-list-item.is-active {
+  background: #19191d;
+  border-color: #ffffff0d;
+  padding: 12px;
+}
+.account-list-item.is-active {
+  border-color: #b4ebcd40;
+}
+.account-list-item .account-option {
+  padding: 0 0 10px;
+  gap: 10px;
+  background: none;
+}
+.account-list-item .account-avatar {
+  width: 27px;
+  height: 27px;
+  border-radius: 9px;
+}
+.account-current {
+  color: #b4ebcd;
+}

@@ -21,7 +21,7 @@ const server = await createServer({
       load(id) {
         if (id !== '\0virtual:activity-timeline') return;
         return `
-import React from 'react';import{createRoot}from'react-dom/client';import{ActivityHistoryButton}from'/src/ui/activity-history.tsx';import'/src/ui/index.css';
+import React from 'react';import{createRoot}from'react-dom/client';import{ActivityHistoryButton}from'/src/ui/activity-history.tsx';import'/src/ui/index.css';import'/src/ui/wallet-theme.css';
 const listeners=new Set(),now=Date.now(),kinds=['send','shield','unshield','merge'],statuses=['confirmed','pending','failed','review'];
 let items=Array.from({length:1000},(_,i)=>({id:'activity-'+i,chainId:1,kind:kinds[i%4],status:statuses[i%4],stage:'synthetic',createdAt:now-i*3600000,updatedAt:now-i*3600000,symbol:'P20',decimals:8,amountRaw:String((i+1)*100000000),txHashes:[],refreshable:false,unreadable:false}));
 const notify=()=>listeners.forEach(fn=>fn({privacyActivityHistory:{newValue:[]}},'local'));
