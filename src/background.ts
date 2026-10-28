@@ -5,7 +5,8 @@ import { consentStorageKey, consentStoragePrefix, sealConsent, openConsent } fro
 import { parseIntent as parseDexIntent, amounts as dexAmounts } from './privacy/dex/protocol';
 import { journalId as dexJournalId } from './privacy/dex/journal';
 import { journalId as sponsoredJournalId } from './privacy/sponsored/journal';
-import { journalId as nftJournalId } from './privacy/nft/journal';
+import { journalId as nftJournalId, open as openNftJournal } from './privacy/nft/journal';
+import { nftTransferActivities } from './privacy/nft/activity';
 import { parseMintRequest } from './privacy/nft/protocol';
 import { signNftTransaction, signNftTransferTransaction } from './privacy/nft/signing';
 import { ensureNftTransport } from './privacy/nft/transport';
@@ -1304,7 +1305,8 @@ const operationActivity = async (operation: PreparedOperation) => {
   };
   return encryptActivity(operation, details, await activityKey());
 };
-const activityHistory = async (message: Record<string, unknown>, includeAll = false) => {
+const activityHistory = async (message: Record<string, unknown>, includeAll = false, includeNfts = true) => {
+  const epoch = operationEpoch;
   const wallet = requireUnlocked(); const key = await activityKey();
   const chainId = Number(message.chainId);
   if (!isSupportedChainId(chainId) || chainId !== await selectedChainId()) throw new Error('历史记录网络与当前网络不一致');
@@ -1314,6 +1316,13 @@ const activityHistory = async (message: Record<string, unknown>, includeAll = fa
   for (const entry of journal) byId.set(entry.id, compactActivity(entry));
   const owned = [...byId.values()].filter(item => item.walletAddress?.toLowerCase() === wallet.address.toLowerCase() && item.chainId === chainId);
   const decoded = await Promise.all(owned.map(item => decodeActivity(item, key)));
+  if (includeNfts && chainId === 1) {
+    const privacy = await privacyAccountState();
+    if (!privacy.privacyAddress) throw new Error('请重新解锁隐私账户后查看记录');
+    const id = nftJournalId(`0x${parsePrivacyAddress(privacy.privacyAddress)}`);
+    const nftJournal = await openNftJournal(await localGet(id), id, key);
+    decoded.push(...nftTransferActivities(nftJournal, wallet.address));
+  }
   const pool = typeof message.poolAddress === 'string' ? message.poolAddress.toLowerCase() : undefined;
   const items = decoded.filter(item => (!message.id || item.id === message.id) && (!pool || item.poolAddress?.toLowerCase() === pool) && (!message.kind || message.kind === 'all' || item.kind === message.kind) && (!message.status || message.status === 'all' || item.status === message.status)).sort((a, b) => b.createdAt - a.createdAt || b.id.localeCompare(a.id));
   const pageSize = [3, 10, 20, 50].includes(Number(message.pageSize)) ? Number(message.pageSize) : 20;
@@ -1321,7 +1330,7 @@ const activityHistory = async (message: Record<string, unknown>, includeAll = fa
   const page = Math.min(pages, Math.max(1, Number.isSafeInteger(message.page) ? Number(message.page) : 1));
   // A concurrent lock must not return decrypted details into an old view.
   await requirePrivacyUnlocked();
-  if (requireUnlocked().address.toLowerCase() !== wallet.address.toLowerCase()) throw new Error('账户已切换，请重新打开历史记录');
+  if (operationEpoch !== epoch || await selectedChainId() !== chainId || requireUnlocked().address.toLowerCase() !== wallet.address.toLowerCase()) throw new Error('账户已切换，请重新打开历史记录');
   return { items: includeAll ? items : items.slice((page - 1) * pageSize, page * pageSize), total: items.length, page, pages, pageSize };
 };
 
@@ -2133,7 +2142,7 @@ const dappHistory = (origin: string, input: unknown): Promise<PrivacyHistoryPage
   const {page,pageSize,poolAddress}=readPagination(input);
   return privacyAccess.read(origin,'history',async context=>{
     const chainId=Number(context.chainId) as ChainId;
-    const {items:activities}=await activityHistory({chainId},true);
+    const {items:activities}=await activityHistory({chainId},true,false);
     const [notes,snapshots]=await Promise.all([callPrivacyEngine<PrivacyNote[]>('PRIVACY_READ_NOTES',{chainId}),callPrivacyEngine<PrivacyPoolSnapshot[]>('PRIVACY_GET_SNAPSHOTS')]);
     const items=historyEntries(activities,notes).map(row=>({...row,chainId})).filter(row=>!poolAddress||row.poolAddress?.toLowerCase()===poolAddress.toLowerCase());
     const pools=NETWORKS[chainId].plabs?.pools??[];
@@ -2776,7 +2785,7 @@ const dispatchRuntimeMessage = async (message: Record<string, unknown>, sender: 
         if(!privacy.privacyAddress || !privacySessionSecret)throw new RpcError(4100,'请先解锁隐私账户');
         const binding:NftTransferBinding={address:wallet.address,privacy:privacy.privacyAddress,revision:operationEpoch};await checkNftTransferBinding(binding);
         if(message.action==='SEND_PRIVATE_NFT' && !(await transactionSettings()).experimentalPrivacyWrites)throw new RpcError(4200,'请先在设置中开启实验性隐私操作');
-        if(message.action==='GET_PRIVATE_NFT_TRANSFER')return callPrivacyEngine('PRIVACY_NFT_TRANSFER_STATUS',{account:wallet.address,binding,id:message.id});
+        if(message.action==='GET_PRIVATE_NFT_TRANSFER')return callPrivacyEngine('PRIVACY_NFT_TRANSFER_STATUS',{account:wallet.address,binding,id:message.id,readOnly:message.readOnly === true});
         if(isDappUiRunning(activeDappUi))throw new RpcError(-32002,'钱包已有待处理请求，请先处理或取消');
         const task:ActiveDappUi={id:crypto.randomUUID(),origin:chrome.runtime.getURL('popup.html'),method:'wallet_sendPrivateNft',phase:'processing',requiresPrivacy:true,privacyExists:true,privacyUnlocked:true,canCancel:false,cancelled:false,createdAt:Date.now(),message:'正在为 NFT 生成隐私转移证明…'};
         activeDappUi=task;void updateApprovalAction().catch(()=>{});

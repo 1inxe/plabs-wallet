@@ -7,6 +7,7 @@ import {
   ArrowUpRight,
   Clock,
   GitMerge,
+  Gem,
   History,
   RefreshCw,
   ShieldCheck,
@@ -35,6 +36,14 @@ const statuses = {
   failed: '失败',
   review: '需核对',
 };
+const activityLabel = (item: PrivacyActivity) =>
+  item.assetType === 'perc721' ? t('发送 NFT') : t(kinds[item.kind]);
+const activityQuantity = (item: PrivacyActivity, hidden: boolean) =>
+  hidden
+    ? '••••••'
+    : item.assetType === 'perc721'
+      ? `#${item.tokenId ?? '?'}`
+      : quantity(item.amountRaw, item.decimals);
 const short = (text: string) => `${text.slice(0, 10)}…${text.slice(-8)}`;
 const quantity = (raw?: string, decimals?: number) => {
   try {
@@ -84,7 +93,11 @@ function useActivity(query: Query) {
     ) => {
       if (
         area === 'local' &&
-        (changes.privacyActivityHistory || changes.privacyOperationJournal)
+        (changes.privacyActivityHistory ||
+          changes.privacyOperationJournal ||
+          Object.keys(changes).some((key) =>
+            key.startsWith(`nft-mints:v1:${query.chainId}:`),
+          ))
       )
         setRevision((value) => value + 1);
       if (
@@ -112,7 +125,7 @@ function useActivity(query: Query) {
     };
     chrome.storage.onChanged.addListener(listener);
     return () => chrome.storage.onChanged.removeListener(listener);
-  }, []);
+  }, [query.chainId]);
   const queryKey = JSON.stringify(query);
   useEffect(() => {
     if (invalidated.current) return;
@@ -170,7 +183,7 @@ function ActivityRow({
   hidden: boolean;
   onSelect: (id: string) => void;
 }) {
-  const amount = hidden ? '••••••' : quantity(item.amountRaw, item.decimals);
+  const amount = activityQuantity(item, hidden);
   return (
     <button
       className="activity-row"
@@ -178,10 +191,17 @@ function ActivityRow({
       data-created-at={item.createdAt}
     >
       <span className={`activity-icon ${item.kind}`}>
-        <ActivityIcon kind={item.kind} />
+        {item.assetType === 'perc721' ? (
+          <Gem size={17} />
+        ) : (
+          <ActivityIcon kind={item.kind} />
+        )}
       </span>
       <span className="activity-description">
-        <strong>{t(kinds[item.kind])}</strong>
+        <strong>{activityLabel(item)}</strong>
+        {item.collectionName && (
+          <span className="activity-collection">{item.collectionName}</span>
+        )}
         <small>
           {day(item.createdAt)} {time(item.createdAt)}
           {item.mergeBatch
@@ -247,7 +267,12 @@ function ActivityDetail({
     setRefreshing(true);
     setStatusError('');
     try {
-      await callWallet('GET_PRIVACY_OPERATION_RESULT', { id: entry.id });
+      if (entry.nftTransferId) {
+        await callWallet('GET_PRIVATE_NFT_TRANSFER', {
+          id: entry.nftTransferId,
+          readOnly: true,
+        });
+      } else await callWallet('GET_PRIVACY_OPERATION_RESULT', { id: entry.id });
       refresh();
     } catch (cause) {
       setStatusError(cause instanceof Error ? cause.message : String(cause));
@@ -285,12 +310,15 @@ function ActivityDetail({
         <>
           <div className="activity-detail-hero">
             <span className={`activity-icon ${entry.kind}`}>
-              <ActivityIcon kind={entry.kind} />
+              {entry.assetType === 'perc721' ? (
+                <Gem size={17} />
+              ) : (
+                <ActivityIcon kind={entry.kind} />
+              )}
             </span>
-            <h1>{t(kinds[entry.kind])}</h1>
+            <h1>{activityLabel(entry)}</h1>
             <strong className="detail-quantity mono">
-              {revealed ? quantity(entry.amountRaw, entry.decimals) : '••••••'}{' '}
-              <small>{entry.symbol}</small>
+              {activityQuantity(entry, !revealed)} <small>{entry.symbol}</small>
             </strong>
             <span className={`activity-status ${entry.status}`}>
               {t(statuses[entry.status])}
@@ -319,6 +347,16 @@ function ActivityDetail({
           )}
           <section className="panel form-stack">
             {row(t('网络'), NETWORKS[chainId].name)}
+            {entry.assetType === 'perc721' && (
+              <>
+                {row(t('合集'), entry.collectionName ?? entry.symbol)}
+                {row(
+                  t('NFT编号'),
+                  revealed ? `#${entry.tokenId ?? '?'}` : '••••••',
+                )}
+                {row(t('数量'), revealed ? '1 NFT' : '••••••')}
+              </>
+            )}
             {entry.dappOrigin && row(t('发起网站'), entry.dappOrigin)}
             {row(
               t('支付方式'),
@@ -328,13 +366,16 @@ function ActivityDetail({
                   ? t('{0} 原生币', [NETWORKS[chainId].nativeSymbol])
                   : t('旧记录未保存'),
             )}
-            {row(
-              t('操作手续费'),
-              revealed
-                ? `${quantity(entry.feeRaw, entry.feeDecimals)}${entry.feeSymbol ? ` ${entry.feeSymbol}` : ''}`
-                : '••••••',
-            )}
+            {entry.assetType !== 'perc721' &&
+              row(
+                t('操作手续费'),
+                revealed
+                  ? `${quantity(entry.feeRaw, entry.feeDecimals)}${entry.feeSymbol ? ` ${entry.feeSymbol}` : ''}`
+                  : '••••••',
+              )}
             {entry.paymentMode === 'native' &&
+              (entry.assetType !== 'perc721' ||
+                entry.maxGasWei !== undefined) &&
               row(
                 t('确认时 Gas 上限'),
                 revealed
@@ -357,6 +398,16 @@ function ActivityDetail({
               new Date(entry.updatedAt).toLocaleString(dateLocale()),
             )}
           </section>
+          {entry.assetType === 'perc721' && entry.poolAddress && (
+            <section className="panel form-stack">
+              <h2>{t('合集地址')}</h2>
+              <p className="mono break-all text-xs">{entry.poolAddress}</p>
+              <CopyButton
+                value={entry.poolAddress}
+                label={t('复制 NFT 合集地址')}
+              />
+            </section>
+          )}
           {entry.recipient && (
             <section className="panel form-stack">
               <h2>
@@ -442,6 +493,38 @@ export function ActivityHistoryContent({
     poolAddress,
     all: true,
   });
+  const pendingNftIds = (data?.items ?? [])
+    .filter((item) => item.nftTransferId && item.status === 'pending')
+    .map((item) => item.nftTransferId!);
+  const pendingNftKey = JSON.stringify(pendingNftIds);
+  useEffect(() => {
+    const ids = JSON.parse(pendingNftKey) as string[];
+    if (chainId !== 1 || !ids.length) return;
+    let active = true,
+      polling = false,
+      cursor = 0;
+    const poll = async () => {
+      if (!active || polling) return;
+      polling = true;
+      const batch = ids.slice(cursor, cursor + 10);
+      cursor = (cursor + batch.length) % ids.length;
+      try {
+        await Promise.allSettled(
+          batch.map((id) =>
+            callWallet('GET_PRIVATE_NFT_TRANSFER', { id, readOnly: true }),
+          ),
+        );
+      } finally {
+        polling = false;
+      }
+    };
+    void poll();
+    const timer = window.setInterval(() => void poll(), 6000);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+    };
+  }, [chainId, pendingNftKey]);
   return (
     <>
       <div className="activity-history-view">

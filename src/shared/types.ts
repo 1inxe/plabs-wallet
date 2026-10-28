@@ -355,6 +355,10 @@ export interface PrivacyMergePlan {
 export interface PrivacyActivityDetails {
   dappOrigin?: string;
   kind: 'send' | 'shield' | 'unshield' | 'merge' | 'unknown';
+  assetType?: 'perc721';
+  nftTransferId?: string;
+  tokenId?: string;
+  collectionName?: string;
   poolAddress?: string;
   symbol: string;
   decimals: number;

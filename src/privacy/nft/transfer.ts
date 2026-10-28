@@ -23,6 +23,10 @@ export type NftTransfer = {
   tokenId: string;
   recipient: string;
   createdAt: number;
+  updatedAt?: number;
+  account?: string;
+  name?: string;
+  symbol?: string;
   state: 'ready' | 'submitted' | 'confirmed' | 'failed';
   transaction: Json;
   output: Json;
@@ -236,6 +240,10 @@ export class NftTransferEngine {
       tokenId: note.tokenId,
       recipient,
       createdAt: Date.now(),
+      updatedAt: Date.now(),
+      account: this.account,
+      name: note.name,
+      symbol: note.symbol,
       state: 'ready',
       transaction,
       output,
@@ -266,6 +274,7 @@ export class NftTransferEngine {
     } catch (error) {
       t.state = 'failed';
       t.message = '发送未签署或已取消';
+      t.updatedAt = Date.now();
       await this.save(j);
       throw error;
     }
@@ -273,6 +282,7 @@ export class NftTransferEngine {
     t.txHash = signed.hash;
     t.raw = signed.raw;
     t.state = 'submitted';
+    t.updatedAt = Date.now();
     await this.save(j);
     try {
       if (hash(await this.p.broadcast(signed.raw)) !== signed.hash)
@@ -283,11 +293,12 @@ export class NftTransferEngine {
     }
     return publicTransfer(t);
   }
-  async status(id: unknown) {
+  async status(id: unknown, readOnly = false) {
     const j = await this.p.load(),
       t = j.transfers?.find((t) => t.id === id);
     if (!t) throw new Error('NFT 发送记录不存在');
     if (t.txHash && t.state === 'submitted') {
+      const previousState = t.state;
       const receipt = await this.p.rpc('eth_getTransactionReceipt', [t.txHash]);
       if (receipt) {
         const r = object(receipt);
@@ -312,7 +323,7 @@ export class NftTransferEngine {
             if (note) note.spent = true;
           }
         }
-      } else if (t.raw) {
+      } else if (t.raw && !readOnly) {
         // Retry only the same signed transaction. Never allocate a new nonce or sign again.
         try {
           await this.p.broadcast(t.raw);
@@ -320,8 +331,10 @@ export class NftTransferEngine {
           /* An unavailable RPC cannot prove failure. */
         }
       }
-      await this.save(j);
+      if (t.state !== previousState) t.updatedAt = Date.now();
+      if (!readOnly || t.state !== previousState) await this.save(j);
     }
+    await this.p.guard();
     return publicTransfer(t);
   }
 }

@@ -25,8 +25,8 @@ import React from 'react';import{createRoot}from'react-dom/client';import{Activi
 const listeners=new Set(),now=Date.now(),kinds=['send','shield','unshield','merge'],statuses=['confirmed','pending','failed','review'];
 let items=Array.from({length:1000},(_,i)=>({id:'activity-'+i,chainId:1,kind:kinds[i%4],status:statuses[i%4],stage:'synthetic',createdAt:now-i*3600000,updatedAt:now-i*3600000,symbol:'P20',decimals:8,amountRaw:String((i+1)*100000000),txHashes:[],refreshable:false,unreadable:false}));
 const notify=()=>listeners.forEach(fn=>fn({privacyActivityHistory:{newValue:[]}},'local'));
-window.__activities={requests:[],unlock(){listeners.forEach(fn=>fn({privacyUnlockSession:{newValue:{}}},'session'));},insert(){items=[{...items[0],id:'new-activity',createdAt:now+1000},...items];notify();},lock(){listeners.forEach(fn=>fn({privacyUnlockSession:{newValue:undefined}},'session'));}};
-window.chrome={storage:{onChanged:{addListener:fn=>listeners.add(fn),removeListener:fn=>listeners.delete(fn)}},runtime:{async sendMessage(request){window.__activities.requests.push(request);if(request.action!=='GET_PRIVACY_ACTIVITY')throw Error('Unexpected request');const selected=request.id?items.filter(item=>item.id===request.id):items;return{ok:true,result:{items:request.all||request.id?selected:selected.slice(0,request.pageSize??20),total:selected.length,page:1,pages:1,pageSize:request.pageSize??20}};}}};
+window.__activities={requests:[],confirmNft:false,nft(){items=[{id:'nft-transfer:sent302',nftTransferId:'sent302',chainId:1,kind:'send',assetType:'perc721',collectionName:'Jubjub Bird',symbol:'JUBJUB',tokenId:'302',decimals:0,recipient:'perc1'+'a'.repeat(65),poolAddress:'0x'+'34'.repeat(20),status:'pending',stage:'submitted',paymentMode:'native',createdAt:now+2000,updatedAt:now+2000,txHashes:['0x'+'56'.repeat(32)],mainTxHash:'0x'+'56'.repeat(32),refreshable:true,unreadable:false},...items];this.notifyNft();},notifyNft(){listeners.forEach(fn=>fn({'nft-mints:v1:1:synthetic':{newValue:{}}},'local'));},unlock(){listeners.forEach(fn=>fn({privacyUnlockSession:{newValue:{}}},'session'));},insert(){items=[{...items[0],id:'new-activity',createdAt:now+1000},...items];notify();},lock(){listeners.forEach(fn=>fn({privacyUnlockSession:{newValue:undefined}},'session'));}};
+window.chrome={storage:{onChanged:{addListener:fn=>listeners.add(fn),removeListener:fn=>listeners.delete(fn)}},runtime:{async sendMessage(request){window.__activities.requests.push(request);if(request.action==='GET_PRIVATE_NFT_TRANSFER'){if(request.readOnly!==true)throw Error('Activity refresh must be read-only');if(window.__activities.confirmNft){items=items.map(item=>item.nftTransferId===request.id?{...item,status:'confirmed',stage:'confirmed',refreshable:false,updatedAt:now+3000}:item);window.__activities.notifyNft();}return{ok:true,result:{id:request.id,state:window.__activities.confirmNft?'confirmed':'submitted'}};}if(request.action!=='GET_PRIVACY_ACTIVITY')throw Error('Unexpected request');const selected=request.id?items.filter(item=>item.id===request.id):items;return{ok:true,result:{items:request.all||request.id?selected:selected.slice(0,request.pageSize??20),total:selected.length,page:1,pages:1,pageSize:request.pageSize??20}};}}};
 function Fixture(){const[hidden,setHidden]=React.useState(false);window.__activities.hide=()=>setHidden(true);return React.createElement('div',{className:'wallet-shell'},React.createElement(ActivityHistoryButton,{chainId:1,hidden}));}
 createRoot(document.getElementById('root')).render(React.createElement(Fixture));
 `;
@@ -170,7 +170,75 @@ try {
       path: join(artifacts, `history-bottom-${width}.png`),
       fullPage: true,
     });
+    await page.evaluate(() => window.__activities.nft());
+    await list.evaluate((element) => {
+      element.scrollTop = 0;
+    });
+    const nft = list.locator('[data-activity-id="nft-transfer:sent302"]');
+    await nft.getByText('发送 NFT', { exact: true }).waitFor();
+    assert.equal(
+      await nft.getByText('Jubjub Bird', { exact: true }).isVisible(),
+      true,
+    );
+    assert.equal(
+      await nft.locator('.activity-quantity strong').innerText(),
+      '#302 JUBJUB',
+    );
+    await page.waitForFunction(() =>
+      window.__activities.requests.some(
+        (r) => r.action === 'GET_PRIVATE_NFT_TRANSFER' && r.readOnly === true,
+      ),
+    );
+    await nft.locator('button').click();
+    await page
+      .getByRole('heading', { name: '发送 NFT', exact: true })
+      .waitFor();
+    assert.equal(
+      await page.getByText('1 NFT', { exact: true }).isVisible(),
+      true,
+    );
+    assert.equal(
+      await page
+        .getByText('perc1' + 'a'.repeat(65), { exact: true })
+        .isVisible(),
+      true,
+    );
+    assert.equal(await page.locator('.activity-hash').count(), 1);
+    await page.evaluate(() => {
+      window.__activities.confirmNft = true;
+    });
+    await page
+      .getByRole('button', { name: '更新链上状态', exact: true })
+      .click();
+    await page
+      .locator('.activity-detail-hero .activity-status.confirmed')
+      .waitFor();
+    await page.screenshot({
+      path: join(artifacts, `nft-send-detail-${width}.png`),
+      fullPage: true,
+    });
+    await page.getByRole('button', { name: '返回', exact: true }).click();
+    assert.equal(
+      await nft.count(),
+      1,
+      'Confirmation updates the original record without duplicating it',
+    );
+    await nft.locator('.activity-status.confirmed').waitFor();
+    await page.screenshot({
+      path: join(artifacts, `nft-send-history-${width}.png`),
+      fullPage: true,
+    });
     await page.evaluate(() => window.__activities.hide());
+    assert.equal(
+      await nft.locator('.activity-quantity strong').innerText(),
+      '•••••• JUBJUB',
+    );
+    await list.evaluate((element) => {
+      element.scrollTop = element.scrollHeight;
+    });
+    await page.waitForFunction(() =>
+      document.querySelector('[data-activity-id="activity-999"]'),
+    );
     assert.equal(
       await list.locator('.activity-quantity strong').first().innerText(),
       '•••••• P20',

@@ -36,6 +36,8 @@ const { signNftTransferTransaction } =
 const { nftInterface } = await import('../src/privacy/nft/protocol.ts');
 const { NOTE_CONFIRMED_TOPIC } = await import('../src/privacy/events.ts');
 const { reverseHexByByte } = await import('../src/privacy/operations.ts');
+const { nftTransferActivities } =
+  await import('../src/privacy/nft/activity.ts');
 const wallet = new Wallet('0x' + '11'.repeat(32)),
   pool = '0x' + '12'.repeat(20),
   recipient = '34'.repeat(43),
@@ -237,6 +239,12 @@ test('NFT transfer preserves the full token ID, verifies proof inputs, and saves
   });
   assert.equal(JSON.stringify(r).includes('note'), false);
   assert.equal(JSON.stringify(r).includes('raw'), false);
+  const [activity] = nftTransferActivities(f.journal(), wallet.address);
+  assert.equal(activity.status, 'pending');
+  assert.equal(activity.collectionName, 'Synthetic NFT');
+  assert.equal(activity.tokenId, '7');
+  assert.equal(activity.maxGasWei, '5000000');
+  assert.equal(activity.mainTxHash, r.txHash);
 });
 test('invalid addresses, unregistered collections, spent notes, wrong paths and altered outputs cannot be signed', async () => {
   for (const flag of [
@@ -301,6 +309,29 @@ test('reverted sends retain NFT ownership and permit a fresh proof', async () =>
   f.state.receipt = null;
   await f.engine.send(f.assetId, recipient, '11'.repeat(32));
   assert.equal(f.state.signatures, 2);
+});
+test('activity status refresh never signs or rebroadcasts a pending NFT send', async () => {
+  const f = fixture();
+  const sent = await f.engine.send(f.assetId, recipient, '11'.repeat(32));
+  const before = structuredClone(f.journal());
+  await f.engine.status(sent.id, true);
+  assert.equal(f.state.signatures, 1);
+  assert.equal(f.state.broadcasts.length, 1);
+  assert.deepEqual(
+    f.journal(),
+    before,
+    'A read with no status change does not rewrite the encrypted journal',
+  );
+  f.state.receipt = {
+    transactionHash: sent.txHash,
+    to: pool,
+    status: '0x1',
+    blockNumber: '0x10',
+  };
+  assert.equal((await f.engine.status(sent.id, true)).state, 'confirmed');
+  assert.equal(f.state.signatures, 1);
+  assert.equal(f.state.broadcasts.length, 1);
+  assert.equal(f.journal().holdings[0].spent, true);
 });
 test('the signing boundary approves the NFT recipient and ETH Gas, and signs only the collection transfer', async () => {
   const f = fixture();

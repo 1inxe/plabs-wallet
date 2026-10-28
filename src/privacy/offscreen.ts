@@ -1353,7 +1353,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         if (!active || session !== active) throw new Error('隐私会话已变化');
         const { engine, ports } = nftContext(message.account, message.binding, ['PRIVACY_NFT_SEND','PRIVACY_NFT_TRANSFER_STATUS'].includes(message.action));
         if(message.action === 'PRIVACY_NFT_SEND')return new NftTransferEngine(ports,message.account).send(message.assetId,message.recipient,message.seedHex);
-        if(message.action === 'PRIVACY_NFT_TRANSFER_STATUS')return new NftTransferEngine(ports,message.account).status(message.id);
+        if(message.action === 'PRIVACY_NFT_TRANSFER_STATUS')return new NftTransferEngine(ports,message.account).status(message.id,message.readOnly === true);
         if (message.action === 'PRIVACY_NFT_REVIEW') return engine.review(message.pool);
         if (message.action === 'PRIVACY_NFT_LIST') return engine.list(message.origin);
         if (message.action === 'PRIVACY_NFT_MINT') return engine.mint(message.origin, message.pool, message.seedHex, message.id);
