@@ -1,5 +1,5 @@
-import type { ReactNode } from 'react';
-import { RefreshCw } from 'lucide-react';
+import { useEffect, useId, useState, type ReactNode } from 'react';
+import { ChevronDown, RefreshCw } from 'lucide-react';
 import { t } from '../i18n';
 import type { AssetSyncProgress } from '../privacy/sync-progress';
 
@@ -22,6 +22,11 @@ export function AssetSyncStatus({
   children: ReactNode;
   variant?: 'assets' | 'collectibles';
 }) {
+  const [expanded, setExpanded] = useState(false);
+  const detailsId = useId();
+  useEffect(() => {
+    if (!busy) setExpanded(false);
+  }, [busy]);
   const percent = Math.max(0, Math.min(99, Math.floor(value?.progress ?? 0)));
   const nft = value?.phase === 'nfts',
     detail = nft ? value.nft : undefined;
@@ -65,21 +70,28 @@ export function AssetSyncStatus({
         <button
           type="button"
           className={`sync-access ${error && !busy ? 'has-issue' : ''}`}
-          aria-label={t('同步隐私资产')}
-          title={busy ? `${phase} · ${percent}% · ${description}` : undefined}
-          disabled={busy || disabled}
-          onClick={onSync}
+          aria-label={busy ? t('同步详情') : t('同步隐私资产')}
+          aria-expanded={busy ? expanded : undefined}
+          aria-controls={busy ? detailsId : undefined}
+          title={
+            busy ? t(expanded ? '收起同步详情' : '查看同步详情') : undefined
+          }
+          disabled={!busy && disabled}
+          onClick={busy ? () => setExpanded((value) => !value) : onSync}
         >
-          <RefreshCw size={13} />
           {busy ? (
             <>
-              <span>{phase}</span>
+              <span>{t('同步{0}', [phase])}</span>
               <strong>{percent}%</strong>
+              <ChevronDown size={12} className="sync-details-chevron" />
             </>
           ) : (
-            <span>
-              {error ? t('同步未完成') : complete ? t('已同步') : t('同步')}
-            </span>
+            <>
+              <RefreshCw size={12} />
+              <span>
+                {error ? t('同步未完成') : complete ? t('已同步') : t('同步')}
+              </span>
+            </>
           )}
         </button>
       </div>
@@ -95,13 +107,15 @@ export function AssetSyncStatus({
           >
             <span style={{ width: `${percent}%` }} />
           </div>
-          <div className="asset-sync-caption" title={description}>
-            <span>{message}</span>
-            {detail && detail.totalCollections > 0 && (
-              <small>{`${detail.collectionIndex}/${detail.totalCollections}`}</small>
-            )}
+          <div id={detailsId} className="asset-sync-details" hidden={!expanded}>
+            <div className="asset-sync-caption" title={description}>
+              <span>{message}</span>
+              {detail && detail.totalCollections > 0 && (
+                <small>{`${detail.collectionIndex}/${detail.totalCollections}`}</small>
+              )}
+            </div>
+            {counts && <small className="asset-sync-counts">{counts}</small>}
           </div>
-          {counts && <small className="asset-sync-counts">{counts}</small>}
         </div>
       )}
     </section>

@@ -53,8 +53,18 @@ try {
       const [window] = await chrome.windows.getAll({ windowTypes: ['normal'] });
       if (window?.id === undefined)
         throw Error('Popup fixture has no browser window');
-      await chrome.windows.update(window.id, { focused: true });
-      await chrome.action.openPopup({ windowId: window.id });
+      for (let attempt = 0; attempt < 3; attempt++) {
+        await chrome.windows.update(window.id, { focused: true });
+        // macOS can resolve update() before the native window has gained focus.
+        await new Promise((resolve) => setTimeout(resolve, 150));
+        try {
+          await chrome.action.openPopup({ windowId: window.id });
+          return;
+        } catch (error) {
+          if (attempt === 2 || !/inactive window/i.test(String(error)))
+            throw error;
+        }
+      }
     });
     let target;
     for (let attempt = 0; attempt < 50; attempt++) {

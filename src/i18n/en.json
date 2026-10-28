@@ -861,5 +861,9 @@
   "Unshield 缺少到账回执约束": "Unshield receipt information is incomplete",
   "Unshield 手续费收款方缺失": "Unshield fee recipient is missing",
   "Unshield 回执包含未知收款方": "Unshield receipt contains an unexpected recipient",
-  "Unshield 实际到账或协议费与准备结果不一致": "Unshield received amount or fee differs from the approved transaction"
+  "Unshield 实际到账或协议费与准备结果不一致": "Unshield received amount or fee differs from the approved transaction",
+  "同步详情": "Sync details",
+  "查看同步详情": "Show sync details",
+  "收起同步详情": "Hide sync details",
+  "同步{0}": "Syncing {0}"
 }

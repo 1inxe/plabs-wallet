@@ -1366,38 +1366,38 @@ html.wallet-popup #root {
   width: 23px !important;
   height: 23px;
 }
-/* Identity, scan status, and progress form one compact surface. */
+/* Sync is a quiet status line; technical scan details are opt-in. */
 .wallet-sync-status {
-  margin: 0 0 20px;
-  padding: 11px 12px;
-  border: 1px solid #ffffff08;
-  border-radius: 12px;
-  background: #ffffff03;
+  margin: 0 0 18px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
 }
 .wallet-sync-heading {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  min-height: 22px;
+  min-height: 28px;
 }
 .wallet-sync-heading > button {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  min-height: 22px;
+  min-height: 28px;
   padding: 0;
   border: 0;
   background: transparent;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 400;
   white-space: nowrap;
 }
 .wallet-sync-heading .privacy-access {
-  color: #aeb6b4;
+  color: #949c9b;
 }
 .wallet-sync-heading .privacy-access > svg {
-  color: var(--wallet-accent);
+  color: #8a9d94;
 }
 .wallet-sync-heading .sync-access {
   color: #a0afa9;
@@ -1407,15 +1407,22 @@ html.wallet-popup #root {
   opacity: 0.45;
 }
 .is-syncing .wallet-sync-heading .sync-access {
-  color: var(--wallet-accent);
+  color: #929b98;
   opacity: 1;
-  cursor: default;
 }
 .sync-access > strong {
-  font-size: 10px;
-  font-weight: 600;
-  min-width: 27px;
+  font-size: 11px;
+  font-weight: 500;
+  min-width: 29px;
   text-align: right;
+  color: var(--wallet-accent);
+}
+.sync-details-chevron {
+  flex-shrink: 0;
+  color: #6f7975;
+}
+.sync-access[aria-expanded='true'] .sync-details-chevron {
+  transform: rotate(180deg);
 }
 .wallet-sync-heading .has-issue {
   color: #d8b788;
@@ -1425,8 +1432,11 @@ html.wallet-popup #root {
 }
 .asset-sync-progress {
   display: grid;
-  gap: 7px;
-  margin-top: 9px;
+  gap: 0;
+  margin-top: 4px;
+}
+.asset-sync-details {
+  padding-top: 8px;
 }
 .asset-sync-caption {
   display: flex;
@@ -1450,10 +1460,10 @@ html.wallet-popup #root {
   font-size: inherit;
 }
 .asset-sync-track {
-  height: 3px;
+  height: 2px;
   overflow: hidden;
-  border-radius: 3px;
-  background: #ffffff09;
+  border-radius: 2px;
+  background: #ffffff06;
 }
 .asset-sync-track > span {
   height: 100%;
@@ -1463,17 +1473,17 @@ html.wallet-popup #root {
   transition: width 0.2s ease;
 }
 .asset-sync-counts {
-  margin-top: -5px;
+  display: block;
+  margin-top: 2px;
   color: #8c9692;
   font-size: 9px;
   line-height: 14px;
   font-variant-numeric: tabular-nums;
 }
 .collectibles-sync-status {
-  padding: 0 0 16px;
+  padding: 0;
   margin-top: 10px;
   border: 0;
-  border-bottom: 1px solid var(--wallet-line);
   border-radius: 0;
   background: none;
 }
