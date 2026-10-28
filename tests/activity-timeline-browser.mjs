@@ -25,7 +25,7 @@ import React from 'react';import{createRoot}from'react-dom/client';import{Activi
 const listeners=new Set(),now=Date.now(),kinds=['send','shield','unshield','merge'],statuses=['confirmed','pending','failed','review'];
 let items=Array.from({length:1000},(_,i)=>({id:'activity-'+i,chainId:1,kind:kinds[i%4],status:statuses[i%4],stage:'synthetic',createdAt:now-i*3600000,updatedAt:now-i*3600000,symbol:'P20',decimals:8,amountRaw:String((i+1)*100000000),txHashes:[],refreshable:false,unreadable:false}));
 const notify=()=>listeners.forEach(fn=>fn({privacyActivityHistory:{newValue:[]}},'local'));
-window.__activities={requests:[],insert(){items=[{...items[0],id:'new-activity',createdAt:now+1000},...items];notify();},lock(){listeners.forEach(fn=>fn({privacyUnlockSession:{newValue:undefined}},'session'));}};
+window.__activities={requests:[],unlock(){listeners.forEach(fn=>fn({privacyUnlockSession:{newValue:{}}},'session'));},insert(){items=[{...items[0],id:'new-activity',createdAt:now+1000},...items];notify();},lock(){listeners.forEach(fn=>fn({privacyUnlockSession:{newValue:undefined}},'session'));}};
 window.chrome={storage:{onChanged:{addListener:fn=>listeners.add(fn),removeListener:fn=>listeners.delete(fn)}},runtime:{async sendMessage(request){window.__activities.requests.push(request);if(request.action!=='GET_PRIVACY_ACTIVITY')throw Error('Unexpected request');const selected=request.id?items.filter(item=>item.id===request.id):items;return{ok:true,result:{items:request.all||request.id?selected:selected.slice(0,request.pageSize??20),total:selected.length,page:1,pages:1,pageSize:request.pageSize??20}};}}};
 function Fixture(){const[hidden,setHidden]=React.useState(false);window.__activities.hide=()=>setHidden(true);return React.createElement('div',{className:'wallet-shell'},React.createElement(ActivityHistoryButton,{chainId:1,hidden}));}
 createRoot(document.getElementById('root')).render(React.createElement(Fixture));
@@ -145,7 +145,10 @@ try {
         String(1002 * 84) + 'px',
     );
     await page.getByRole('button', { name: '返回', exact: true }).click();
-    await page.waitForFunction(() => document.querySelector('[role="list"]')?.scrollTop === 302 * 84 + 12);
+    await page.waitForFunction(
+      () =>
+        document.querySelector('[role="list"]')?.scrollTop === 302 * 84 + 12,
+    );
     assert.equal(
       await list.evaluate((element) => element.scrollTop),
       before + 168,
@@ -182,6 +185,12 @@ try {
       await page.getByRole('listitem').count(),
       0,
       'Locking removes decrypted history',
+    );
+    await page.evaluate(() => window.__activities.unlock());
+    await page.getByRole('listitem').first().waitFor();
+    assert.ok(
+      (await page.getByRole('listitem').count()) < 30,
+      'Unlocking restores the virtual timeline without leaving the page',
     );
     assert.deepEqual(errors, []);
     console.log(

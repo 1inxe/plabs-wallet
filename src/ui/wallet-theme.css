@@ -1250,3 +1250,223 @@ html.wallet-popup #root {
   color: #b4ebcd;
   border-color: #b4ebcd50;
 }
+/* Account identity and the copy action share the left side of the header. */
+.account-identity {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex: 1;
+  min-width: 0;
+}
+.account-details {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+.account-name {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  text-align: left;
+  min-width: 0;
+}
+.account-name strong {
+  font-size: 13px;
+  line-height: 20px;
+  max-width: 110px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+.account-name > svg {
+  flex-shrink: 0;
+  color: #979ba2;
+}
+.account-address-line {
+  display: flex;
+  gap: 2px;
+  align-items: center;
+  min-width: 0;
+  height: 18px;
+}
+.account-address-line > span {
+  color: #899d91;
+  font-size: 9px;
+  line-height: 16px;
+  white-space: nowrap;
+}
+.account-address-line .copy-button.compact {
+  width: 21px;
+  height: 20px;
+  padding: 3px;
+  color: #8f9b94;
+}
+.account-address-line .copy-button svg {
+  width: 11px;
+  height: 11px;
+}
+.account-header .network-pill {
+  padding-left: 0;
+}
+.account-header .network-pill button {
+  padding: 0 9px;
+}
+.select-option-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+.select-option-label > span {
+  min-width: 0;
+}
+.network-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 19px;
+  width: 19px;
+  height: 19px;
+  border-radius: 50%;
+  background: #343943;
+}
+.network-icon svg {
+  width: 17px !important;
+  height: 17px;
+}
+.network-icon.chain-143 {
+  background: #7960d8;
+}
+.network-icon.chain-8453 {
+  background: #1456ff;
+}
+.network-icon.chain-42161 {
+  background: #1a2d43;
+}
+.selection-option .network-icon {
+  flex-basis: 27px;
+  width: 27px;
+  height: 27px;
+}
+.selection-option .network-icon svg {
+  width: 23px !important;
+  height: 23px;
+}
+.wallet-health .sync-access:disabled {
+  opacity: 1;
+  color: #9ca9a1;
+}
+.asset-sync-progress {
+  margin: -11px 0 18px;
+  display: grid;
+  gap: 6px;
+}
+.asset-sync-caption {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  color: #9aa99f;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+.asset-sync-caption > span {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.asset-sync-caption > strong {
+  flex-shrink: 0;
+  font-size: 10px;
+  font-weight: 500;
+  color: #b5d8c3;
+}
+.asset-sync-stage {
+  margin-left: 8px;
+  color: #717f77;
+}
+.asset-sync-track {
+  height: 3px;
+  overflow: hidden;
+  border-radius: 3px;
+  background: #ffffff0c;
+}
+.asset-sync-track > span {
+  height: 100%;
+  display: block;
+  background: #a8d4ba;
+  border-radius: inherit;
+  transition: width 0.2s ease;
+}
+.asset-sync-progress > small {
+  font-size: 9px;
+  line-height: 13px;
+  color: #6f7e75;
+  font-variant-numeric: tabular-nums;
+}
+.route-body,
+.dapp-request-body {
+  min-height: calc(100dvh - 70px);
+}
+.approval-field-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+.approval-field-label small {
+  margin: 0;
+}
+.approval-field .approval-message {
+  margin: 8px 0 4px;
+  max-height: 180px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font:
+    11px/1.7 'JetBrains Mono',
+    monospace;
+  color: #d0d5d1;
+}
+.approval-expand {
+  padding: 5px 0;
+  color: #adc9b8;
+  font-size: 10px;
+}
+.approval-full-message {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font:
+    11px/1.8 'JetBrains Mono',
+    monospace;
+  color: #d0d5d1;
+}
+.approval-deadline {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.account-address-line {
+  height: 20px;
+}
+.account-address-line > span {
+  font-size: 10px;
+}
+.account-address-line .copy-button.compact {
+  width: 24px;
+  height: 22px;
+}
+.account-address-line .copy-button svg {
+  width: 12px;
+  height: 12px;
+}
+.wallet-actions > button:hover:not(:disabled) > span {
+  transform: none;
+}
+/* Page navigation restores scroll explicitly; browser anchoring must not move it again. */
+html,
+body,
+#root {
+  overflow-anchor: none;
+}

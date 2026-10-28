@@ -42,7 +42,12 @@ export function usePrivacyPaymentMode() {
     };
   }, []);
   const change = async (value: string) => {
-    if (saving || !loaded || (value !== 'native' && value !== 'private'))
+    if (
+      saving ||
+      value === mode ||
+      !loaded ||
+      (value !== 'native' && value !== 'private')
+    )
       return;
     setSaving(true);
     setError('');

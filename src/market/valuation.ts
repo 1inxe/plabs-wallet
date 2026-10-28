@@ -38,7 +38,7 @@ const usdNumber = new Intl.NumberFormat('en-US', {
 export const money = (value: number) => {
   const amount = Number.isFinite(value) ? value : 0;
   const formatted = usdNumber.format(Math.abs(amount));
-  return `${amount < 0 && formatted !== '0.00' ? '-' : ''}US$${formatted}`;
+  return `${amount < 0 && formatted !== '0.00' ? '-' : ''}$${formatted}`;
 };
 export const percentage = (value: number | null | undefined) =>
   `${value && value > 0 ? '+' : ''}${(value ?? 0).toFixed(2)}%`;
@@ -46,6 +46,6 @@ export const percentage = (value: number | null | undefined) =>
 export const signedMoney = (value: number) => {
   const formatted = money(Math.abs(value));
   const sign =
-    formatted === 'US$0.00' ? '' : value < 0 ? '-' : value > 0 ? '+' : '';
+    formatted === '$0.00' ? '' : value < 0 ? '-' : value > 0 ? '+' : '';
   return `${sign}${formatted}`;
 };

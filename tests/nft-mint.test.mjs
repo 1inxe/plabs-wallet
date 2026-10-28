@@ -3,7 +3,14 @@ import { readFileSync } from 'node:fs';
 import { registerHooks } from 'node:module';
 import { test } from 'node:test';
 import ts from 'typescript';
-import { Wallet, Transaction, AbiCoder, ZeroAddress, ZeroHash, keccak256 } from 'ethers';
+import {
+  Wallet,
+  Transaction,
+  AbiCoder,
+  ZeroAddress,
+  ZeroHash,
+  keccak256,
+} from 'ethers';
 
 registerHooks({
   resolve(specifier, context, next) {
@@ -20,7 +27,10 @@ registerHooks({
       return {
         format: 'module',
         source: ts.transpileModule(readFileSync(new URL(url), 'utf8'), {
-          compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext },
+          compilerOptions: {
+            target: ts.ScriptTarget.ES2022,
+            module: ts.ModuleKind.ESNext,
+          },
         }).outputText,
         shortCircuit: true,
       };
@@ -30,7 +40,8 @@ registerHooks({
 const { NftMintEngine } = await import('../src/privacy/nft/engine.ts');
 const protocol = await import('../src/privacy/nft/protocol.ts');
 const { open, seal, journalId } = await import('../src/privacy/nft/journal.ts');
-const { NftAssetSync, publicNftAssets } = await import('../src/privacy/nft/holdings.ts');
+const { NftAssetSync, publicNftAssets } =
+  await import('../src/privacy/nft/holdings.ts');
 const { signNftTransaction } = await import('../src/privacy/nft/signing.ts');
 const { NOTE_ADDED_TOPIC } = await import('../src/privacy/events.ts');
 const { NFT, nftInterface, mintCallHash, privacyTag } = protocol;
@@ -121,7 +132,8 @@ function fixture() {
         return {
           required: true,
           reservationId: state.permitBad ? 'bad' : '0x' + '67'.repeat(32),
-          deadline: Math.floor(Date.now() / 1000) + (state.permitExpired ? -1 : 120),
+          deadline:
+            Math.floor(Date.now() / 1000) + (state.permitExpired ? -1 : 120),
           signature: '0x' + '89'.repeat(65),
         };
       }
@@ -129,7 +141,9 @@ function fixture() {
     },
     ownership: async (message) => {
       assert.ok(
-        message.startsWith('PrivaSea allowlisted free mint\nChain ID: 1\nMarket: ' + NFT.market),
+        message.startsWith(
+          'PrivaSea allowlisted free mint\nChain ID: 1\nMarket: ' + NFT.market,
+        ),
       );
       return { synthetic: true };
     },
@@ -155,7 +169,10 @@ function fixture() {
               logs: [{ address: pool, topics: [NOTE_ADDED_TOPIC, cmx] }],
             };
       if (method === 'eth_getBlockByNumber')
-        return { number: '0x21', hash: state.reorg ? '0x' + '90'.repeat(32) : blockHash };
+        return {
+          number: '0x21',
+          hash: state.reorg ? '0x' + '90'.repeat(32) : blockHash,
+        };
       if (method === 'eth_call') {
         const call = nftInterface.parseTransaction({ data: params[0].data });
         const answers = {
@@ -202,7 +219,10 @@ function fixture() {
     },
     sign: async (transaction) => {
       state.signs++;
-      assert.ok(journal.records[0].note, 'private note is durable before signing');
+      assert.ok(
+        journal.records[0].note,
+        'private note is durable before signing',
+      );
       if (state.signatureReject) throw new Error('User rejected');
       const raw = await wallet.signTransaction({
         ...transaction,
@@ -216,7 +236,11 @@ function fixture() {
     broadcast: async (signed) => {
       state.broadcasts++;
       const tx = Transaction.from(signed);
-      assert.equal(journal.records[0].txHash, tx.hash, 'hash durable before any dispatch');
+      assert.equal(
+        journal.records[0].txHash,
+        tx.hash,
+        'hash durable before any dispatch',
+      );
       assert.equal(tx.to.toLowerCase(), NFT.market);
       if (state.unknown) throw new Error('timeout after acceptance');
       return tx.hash;
@@ -252,7 +276,10 @@ test('native NFT mint reserves once, persists proof/note before signing and hash
     result.id,
   );
   assert.equal(resumed.state, 'confirmed');
-  assert.deepEqual([f.state.proofs, f.state.signs, f.state.broadcasts], [1, 1, 1]);
+  assert.deepEqual(
+    [f.state.proofs, f.state.signs, f.state.broadcasts],
+    [1, 1, 1],
+  );
 });
 test('an uncertain broadcast can only resume the saved hash, never produce another signature', async () => {
   const f = fixture();
@@ -281,21 +308,33 @@ test('rejected final approval reuses the original reservation and proof on expli
   assert.equal(f.state.reserves, 1);
 });
 test('expired permits resume the original job and proof with a new permit', async () => {
-  const f=fixture();f.state.permitExpired=true;
-  const first=await f.engine.mint(origin,pool,'11'.repeat(32));
-  assert.equal(first.stage,'permit-expired');assert.equal(first.canResume,true);assert.equal(first.txHash,undefined);
-  assert.equal(f.state.signs,0);assert.equal(f.state.broadcasts,0);
-  f.state.permitExpired=false;
-  const resumed=await f.engine.mint(origin,pool,'11'.repeat(32),first.id);
-  assert.ok(resumed.txHash);assert.equal(resumed.id,first.id);assert.equal(resumed.tokenId,first.tokenId);
-  assert.deepEqual([f.state.reserves,f.state.proofs,f.state.permits],[1,1,2]);
+  const f = fixture();
+  f.state.permitExpired = true;
+  const first = await f.engine.mint(origin, pool, '11'.repeat(32));
+  assert.equal(first.stage, 'permit-expired');
+  assert.equal(first.canResume, true);
+  assert.equal(first.txHash, undefined);
+  assert.equal(f.state.signs, 0);
+  assert.equal(f.state.broadcasts, 0);
+  f.state.permitExpired = false;
+  const resumed = await f.engine.mint(origin, pool, '11'.repeat(32), first.id);
+  assert.ok(resumed.txHash);
+  assert.equal(resumed.id, first.id);
+  assert.equal(resumed.tokenId, first.tokenId);
+  assert.deepEqual(
+    [f.state.reserves, f.state.proofs, f.state.permits],
+    [1, 1, 2],
+  );
 });
 test('wallet changes while proving cannot persist a new proof or broadcast', async () => {
   const f = fixture();
   f.state.afterProof = () => {
     f.state.valid = false;
   };
-  await assert.rejects(f.engine.mint(origin, pool, '11'.repeat(32)), /context changed/);
+  await assert.rejects(
+    f.engine.mint(origin, pool, '11'.repeat(32)),
+    /context changed/,
+  );
   assert.equal(f.state.signs, 0);
   assert.equal(f.state.broadcasts, 0);
   assert.equal(f.journal().records[0].note, undefined);
@@ -303,7 +342,8 @@ test('wallet changes while proving cannot persist a new proof or broadcast', asy
 test('wrong recipient, mismatched reservations, invalid permits and wrong chains cannot sign a mint', async () => {
   for (const kind of ['recipient', 'job', 'permit', 'chain']) {
     const f = fixture();
-    if (kind === 'recipient') f.proof.owned_note.recipient_raw_address_hex = '90'.repeat(43);
+    if (kind === 'recipient')
+      f.proof.owned_note.recipient_raw_address_hex = '90'.repeat(43);
     if (kind === 'job') f.job.wallet = '0x' + '00'.repeat(32);
     if (kind === 'permit') f.state.permitBad = true;
     if (kind === 'chain') f.state.chain = '0x8f';
@@ -321,7 +361,10 @@ test('a server-provided foreign transaction cannot confirm an unrelated private 
   const result = await f.engine.mint(origin, pool, '11'.repeat(32));
   f.state.confirmed = true;
   f.state.reorg = true;
-  assert.equal((await f.engine.mint(origin, pool, '11'.repeat(32), result.id)).state, 'pending');
+  assert.equal(
+    (await f.engine.mint(origin, pool, '11'.repeat(32), result.id)).state,
+    'pending',
+  );
   await assert.rejects(
     new NftMintEngine(f.ports, account, privacy).mint(
       'https://other.invalid',
@@ -335,10 +378,11 @@ test('a server-provided foreign transaction cannot confirm an unrelated private 
 test('mint recovery and asset notes use authenticated encryption bound to the privacy wallet', async () => {
   const f = fixture();
   await f.engine.mint(origin, pool, '11'.repeat(32));
-  const key = await crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, true, [
-    'encrypt',
-    'decrypt',
-  ]);
+  const key = await crypto.subtle.generateKey(
+    { name: 'AES-GCM', length: 256 },
+    true,
+    ['encrypt', 'decrypt'],
+  );
   const id = journalId(privacy);
   const box = await seal(f.journal(), id, key);
   assert.equal(JSON.stringify(box).includes('cmx_hex'), false);
@@ -383,7 +427,13 @@ test('native signer fixes the reviewed fee cap and nonce before approval and doe
   await assert.rejects(
     signNftTransaction(
       { ...transaction, to: account },
-      { account, signer: wallet, provider, guard: async () => {}, approve: async () => {} },
+      {
+        account,
+        signer: wallet,
+        provider,
+        guard: async () => {},
+        approve: async () => {},
+      },
     ),
   );
   await assert.rejects(
@@ -408,7 +458,11 @@ function syncFixture() {
     fail = false,
     removed = false;
   const calls = [];
-  const note = { cmx_hex: cmx, value_sats: 55, recipient_raw_address_hex: privacy };
+  const note = {
+    cmx_hex: cmx,
+    value_sats: 55,
+    recipient_raw_address_hex: privacy,
+  };
   const abi = AbiCoder.defaultAbiCoder();
   const log = {
     address: pool,
@@ -433,11 +487,18 @@ function syncFixture() {
       calls.push({ method, params });
       if (fail) throw new Error('synthetic RPC outage');
       if (method === 'eth_chainId') return '0x1';
-      if (method === 'eth_getCode') return BigInt(params[1]) >= 10n ? '0x1234' : '0x';
+      if (method === 'eth_getCode')
+        return BigInt(params[1]) >= 10n ? '0x1234' : '0x';
       if (method === 'eth_getBlockByNumber')
-        return { number: params[0] === 'latest' ? '0x14' : params[0], hash: blockHash };
+        return {
+          number: params[0] === 'latest' ? '0x14' : params[0],
+          hash: blockHash,
+        };
       if (method === 'eth_getLogs')
-        return BigInt(params[0].fromBlock) <= 11n && BigInt(params[0].toBlock) >= 11n ? [log] : [];
+        return BigInt(params[0].fromBlock) <= 11n &&
+          BigInt(params[0].toBlock) >= 11n
+          ? [log]
+          : [];
       if (method === 'eth_call') {
         const call = nftInterface.parseTransaction({ data: params[0].data });
         const values = {
@@ -527,7 +588,8 @@ test('NFT transport rule only strips page metadata from this extension’s fixed
       },
     },
   };
-  const { nftTransportRule, ensureNftTransport } = await import('../src/privacy/nft/transport.ts');
+  const { nftTransportRule, ensureNftTransport } =
+    await import('../src/privacy/nft/transport.ts');
   const rule = nftTransportRule(chrome.runtime.id);
   assert.deepEqual(rule.condition.initiatorDomains, ['a'.repeat(32)]);
   assert.deepEqual(rule.condition.requestMethods, ['post']);
@@ -537,7 +599,9 @@ test('NFT transport rule only strips page metadata from this extension’s fixed
   ]);
   const allowed = new RegExp(rule.condition.regexFilter);
   assert.ok(allowed.test('https://app.plabs.online/nft-intake/v1/reserve'));
-  assert.ok(allowed.test('https://app.plabs.online/nft-intake/v1/jobs/abc/permit'));
+  assert.ok(
+    allowed.test('https://app.plabs.online/nft-intake/v1/jobs/abc/permit'),
+  );
   for (const url of [
     'https://other.invalid/nft-intake/v1/reserve',
     'https://app.plabs.online/nft-intake/v1/bids',
@@ -548,28 +612,237 @@ test('NFT transport rule only strips page metadata from this extension’s fixed
   await assert.rejects(ensureNftTransport());
   reject = false;
   await Promise.all([ensureNftTransport(), ensureNftTransport()]);
-  assert.equal(calls.length, 2, 'failed initialization can retry; successful setup is coalesced');
+  assert.equal(
+    calls.length,
+    2,
+    'failed initialization can retry; successful setup is coalesced',
+  );
   delete globalThis.chrome;
 });
 
-test('a permit expiring while the gas approval is open cannot be signed',async()=>{
- const f=fixture();await f.engine.mint(origin,pool,'11'.repeat(32));
- const record=f.journal().records[0],now=Date.now,deadline=Math.floor(now()/1000)+120;
- const transaction={chainId:1,to:NFT.market,value:'0x0',data:protocol.encodeMint(pool,'7',record.mint,{required:true,reservationId:'0x'+'67'.repeat(32),deadline,signature:'0x'+'89'.repeat(65)})};
- let signatures=0;
- try{
-  await assert.rejects(signNftTransaction(transaction,{account,signer:{signTransaction:async()=>{signatures++;throw Error('must not sign');}},provider:{estimateGas:async()=>100000n,getFeeData:async()=>({maxFeePerGas:10n,maxPriorityFeePerGas:2n}),getBalance:async()=>10000000n,getTransactionCount:async()=>1},guard:async()=>{},approve:async()=>{Date.now=()=>now()+180000;}}),/许可(?:已过期|有效期不足)/);
- }finally{Date.now=now;}
- assert.equal(signatures,0);
+test('a permit expiring while the gas approval is open cannot be signed', async () => {
+  const f = fixture();
+  await f.engine.mint(origin, pool, '11'.repeat(32));
+  const record = f.journal().records[0],
+    now = Date.now,
+    deadline = Math.floor(now() / 1000) + 120;
+  const transaction = {
+    chainId: 1,
+    to: NFT.market,
+    value: '0x0',
+    data: protocol.encodeMint(pool, '7', record.mint, {
+      required: true,
+      reservationId: '0x' + '67'.repeat(32),
+      deadline,
+      signature: '0x' + '89'.repeat(65),
+    }),
+  };
+  let signatures = 0;
+  try {
+    await assert.rejects(
+      signNftTransaction(transaction, {
+        account,
+        signer: {
+          signTransaction: async () => {
+            signatures++;
+            throw Error('must not sign');
+          },
+        },
+        provider: {
+          estimateGas: async () => 100000n,
+          getFeeData: async () => ({
+            maxFeePerGas: 10n,
+            maxPriorityFeePerGas: 2n,
+          }),
+          getBalance: async () => 10000000n,
+          getTransactionCount: async () => 1,
+        },
+        guard: async () => {},
+        approve: async () => {
+          Date.now = () => now() + 180000;
+        },
+      }),
+      /许可(?:已过期|有效期不足)/,
+    );
+  } finally {
+    Date.now = now;
+  }
+  assert.equal(signatures, 0);
 });
 
-test('full asset rescan replays NFT history without discarding known holdings or send recovery',async()=>{
-  const f=syncFixture();await f.engine.sync();
-  f.journal().transfers=[{id:'synthetic-send-recovery'}];
-  const scans=f.calls.filter(c=>c.method==='eth_getLogs').length;
-  await f.engine.sync(true,true);
-  assert.equal(f.calls.filter(c=>c.method==='eth_getLogs').length,scans+1);
-  assert.equal((await f.engine.snapshot()).items[0].tokenId,'55');
-  assert.equal(f.journal().holdings.length,1,'Replayed commitments are deduplicated');
-  assert.equal(f.journal().transfers[0].id,'synthetic-send-recovery');
+test('full asset rescan replays NFT history without discarding known holdings or send recovery', async () => {
+  const f = syncFixture();
+  await f.engine.sync();
+  f.journal().transfers = [{ id: 'synthetic-send-recovery' }];
+  const scans = f.calls.filter((c) => c.method === 'eth_getLogs').length;
+  await f.engine.sync(true, true);
+  assert.equal(
+    f.calls.filter((c) => c.method === 'eth_getLogs').length,
+    scans + 1,
+  );
+  assert.equal((await f.engine.snapshot()).items[0].tokenId, '55');
+  assert.equal(
+    f.journal().holdings.length,
+    1,
+    'Replayed commitments are deduplicated',
+  );
+  assert.equal(f.journal().transfers[0].id, 'synthetic-send-recovery');
+});
+
+test('NFT synchronization exposes real block progress and adapts to a 50-block provider', async () => {
+  const f = syncFixture(),
+    history = [],
+    rpc = f.ports.rpc,
+    save = f.ports.save;
+  f.ports.save = async (journal) => {
+    history.push(structuredClone(journal.syncStatus));
+    await save(journal);
+  };
+  f.ports.rpc = async (method, params) => {
+    if (method === 'eth_getBlockByNumber' && params[0] === 'latest')
+      return { number: '0x90', hash: blockHash };
+    if (
+      method === 'eth_getLogs' &&
+      BigInt(params[0].toBlock) - BigInt(params[0].fromBlock) + 1n > 50n
+    )
+      throw Error('eth_getLogs is limited to 0 - 50 blocks range');
+    return rpc(method, params);
+  };
+  assert.equal((await f.engine.sync()).syncComplete, true);
+  const stages = history.filter(Boolean);
+  assert.ok(stages.some((s) => s.phase === 'discover'));
+  assert.ok(
+    stages.some(
+      (s) =>
+        s.phase === 'scan' &&
+        s.scannedBlocks > 0 &&
+        s.scannedBlocks < s.totalBlocks,
+    ),
+  );
+  assert.ok(stages.some((s) => s.phase === 'verify'));
+  assert.ok(
+    stages.filter((s) => s.phase !== 'complete').every((s) => s.progress < 100),
+  );
+  assert.equal((await f.engine.progress()).progress, 100);
+  assert.equal(
+    (await f.engine.snapshot()).syncStatus,
+    undefined,
+    'Private sync counters are not added to the public NFT read result',
+  );
+  const ranges = f.calls
+    .filter((c) => c.method === 'eth_getLogs')
+    .map((c) => [
+      Number(BigInt(c.params[0].fromBlock)),
+      Number(BigInt(c.params[0].toBlock)),
+    ]);
+  assert.deepEqual(ranges, [
+    [10, 59],
+    [60, 109],
+    [110, 143],
+  ]);
+});
+test('a reorg during NFT scanning cannot advance the cursor or save a false holding', async () => {
+  const f = syncFixture(),
+    rpc = f.ports.rpc;
+  let changed = false;
+  f.ports.rpc = async (method, params) => {
+    if (method === 'eth_getLogs') {
+      const result = await rpc(method, params);
+      changed = true;
+      return result;
+    }
+    if (method === 'eth_getBlockByNumber' && params[0] !== 'latest' && changed)
+      return { number: params[0], hash: '0x' + '99'.repeat(32) };
+    return rpc(method, params);
+  };
+  const result = await f.engine.sync();
+  assert.equal(result.syncComplete, false);
+  assert.match(result.error, /区块已变化/);
+  assert.equal(result.items.length, 0);
+  assert.equal(f.journal().pools[pool].cursor, 9);
+});
+
+test('NFT signing refuses changed nonce, pending balance or gas after approval', async () => {
+  for (const changed of ['nonce', 'balance', 'gas']) {
+    const f = fixture();
+    await f.engine.mint(origin, pool, '11'.repeat(32));
+    const record = f.journal().records[0];
+    const transaction = {
+      chainId: 1,
+      to: NFT.market,
+      value: '0x0',
+      data: protocol.encodeMint(pool, '7', record.mint, { required: false }),
+    };
+    let approved = false,
+      signatures = 0;
+    const provider = {
+      estimateGas: async () =>
+        approved && changed === 'gas' ? 200000n : 100000n,
+      getFeeData: async () => ({ maxFeePerGas: 10n, maxPriorityFeePerGas: 2n }),
+      getBalance: async () =>
+        approved && changed === 'balance' ? 0n : 10000000n,
+      getTransactionCount: async () =>
+        approved && changed === 'nonce' ? 5 : 4,
+    };
+    await assert.rejects(
+      signNftTransaction(transaction, {
+        account,
+        provider,
+        signer: {
+          signTransaction: async (transaction) => {
+            signatures++;
+            return wallet.signTransaction(transaction);
+          },
+        },
+        guard: async () => {},
+        approve: async () => {
+          approved = true;
+        },
+      }),
+      /nonce|余额|Gas/,
+    );
+    assert.equal(signatures, 0, changed);
+  }
+});
+
+test('NFT gas quotes obey the same one-native-coin cap before requesting approval', async () => {
+  const f = fixture();
+  await f.engine.mint(origin, pool, '11'.repeat(32));
+  const record = f.journal().records[0];
+  let approvals = 0,
+    signatures = 0;
+  const transaction = {
+    chainId: 1,
+    to: NFT.market,
+    value: '0x0',
+    data: protocol.encodeMint(pool, '7', record.mint, { required: false }),
+  };
+  const provider = {
+    estimateGas: async () => 100000n,
+    getFeeData: async () => ({
+      maxFeePerGas: 10n ** 20n,
+      maxPriorityFeePerGas: 1n,
+    }),
+    getBalance: async () => 10n ** 30n,
+    getTransactionCount: async () => 4,
+  };
+  await assert.rejects(
+    signNftTransaction(transaction, {
+      account,
+      provider,
+      signer: {
+        signTransaction: async () => {
+          signatures++;
+          return '0x';
+        },
+      },
+      guard: async () => {},
+      approve: async () => {
+        approvals++;
+      },
+    }),
+    /单笔上限/,
+  );
+  assert.equal(approvals, 0);
+  assert.equal(signatures, 0);
 });

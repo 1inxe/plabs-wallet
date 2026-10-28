@@ -1,3 +1,4 @@
+import { unshieldAsset } from '../privacy/unshield';
 import { t, dateLocale } from '../i18n';
 import { useEffect, useRef, useState } from 'react';
 import {
@@ -86,6 +87,15 @@ function useActivity(query: Query) {
         (changes.privacyActivityHistory || changes.privacyOperationJournal)
       )
         setRevision((value) => value + 1);
+      if (
+        area === 'session' &&
+        (changes.privacyUnlockSession?.newValue ||
+          changes.walletUnlockSession?.newValue)
+      ) {
+        invalidated.current = false;
+        generation.current++;
+        setRevision((value) => value + 1);
+      }
       if (
         area === 'session' &&
         ((changes.privacyUnlockSession &&
@@ -337,7 +347,7 @@ function ActivityDetail({
               row(
                 entry.kind === 'merge' ? t('本批合并输出') : t('预览到账数量'),
                 revealed
-                  ? `${quantity(entry.receiveRaw, entry.decimals)} ${entry.kind === 'unshield' && entry.symbol === 'sUSDC' ? 'USDC' : entry.symbol}`
+                  ? `${quantity(entry.receiveRaw, entry.decimals)} ${entry.kind === 'unshield' ? (unshieldAsset(chainId, entry.poolAddress ?? '')?.symbol ?? entry.symbol) : entry.symbol}`
                   : '••••••',
               )}
             {entry.mergeBatch &&

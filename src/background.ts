@@ -1,3 +1,5 @@
+import type { AssetSyncProgress, NftSyncProgress } from './privacy/sync-progress';
+import { unshieldAsset, verifyUnshieldReceipt } from './privacy/unshield';
 import { createMarketPrices } from './market/prices';
 import { consentStorageKey, consentStoragePrefix, sealConsent, openConsent } from './dapp-api/read-consent-store';
 import { parseIntent as parseDexIntent, amounts as dexAmounts } from './privacy/dex/protocol';
@@ -137,7 +139,7 @@ const changeAuthorization = <T>(work: () => Promise<T>): Promise<T> => {
 const activeSubmissions = new Set<string>();
 const invalidateOperations = () => { operationEpoch++; preparedOperations.clear(); publicTransfers.clear(); };
 const privacySyncJobs = new Map<ChainId, Promise<PrivacyPoolSnapshot[]>>();
-type AssetSyncState = { epoch: number; address: string; phase: 'tokens' | 'nfts' | 'complete' | 'error'; startedAt: number; error?: string; job?: Promise<PrivacyPoolSnapshot[]> };
+type AssetSyncState = { epoch: number; address: string; phase: 'tokens' | 'nfts' | 'complete' | 'error'; startedAt: number; error?: string; lastProgress?: AssetSyncProgress; job?: Promise<PrivacyPoolSnapshot[]> };
 const privacyAssetSync = new Map<ChainId, AssetSyncState>();
 
 interface WalletUnlockSession {
@@ -564,15 +566,21 @@ const getTokenSyncProgress = async (chainId: ChainId): Promise<PrivacySyncProgre
   };
 };
 
-const getPrivacySyncProgress = async (chainId: ChainId): Promise<PrivacySyncProgress> => {
+const getPrivacySyncProgress = async (chainId: ChainId): Promise<AssetSyncProgress> => {
   const state = privacyAssetSync.get(chainId);
   if (!state || state.epoch !== operationEpoch || state.address !== requireUnlocked().address) return getTokenSyncProgress(chainId);
   const base = { chainId, startedAt: state.startedAt, updatedAt: Date.now() };
-  if (state.phase === 'complete') return { ...base, status: 'complete', progress: 100, message: '同步完成' };
-  if (state.phase === 'error') return { ...base, status: 'error', progress: 0, message: '同步未完成', error: state.error };
-  if (state.phase === 'nfts') return { ...base, status: 'syncing', progress: 80, message: '正在同步 NFT' };
+  if (state.phase === 'complete') return { ...base, status: 'complete', phase:'complete', progress: 100, message: '同步完成' };
+  if (state.phase === 'error') return { ...base, status: 'error', phase:'error', progress: state.lastProgress?.progress??0, message: '同步未完成', error: state.error };
+  if (state.phase === 'nfts') {
+    const nft=await callPrivacyEngine<NftSyncProgress|null>('PRIVACY_NFT_SYNC_PROGRESS',{account:state.address}).catch(()=>null);
+    const progress=Math.min(99,80+Math.floor((nft?.progress??0)*0.2));
+    const result:AssetSyncProgress={...base,status:'syncing',phase:'nfts',progress,message:'正在同步 NFT',...(nft?{nft}:{} )};
+    state.lastProgress=result;return result;
+  }
   const tokens = await getTokenSyncProgress(chainId);
-  return { ...base, status: 'syncing', progress: chainId === 1 ? Math.min(79, Math.floor(tokens.progress * 0.8)) : Math.min(99, tokens.progress), message: '正在同步资产' };
+  const result:AssetSyncProgress={ ...base, status: 'syncing', phase:'tokens', progress: chainId === 1 ? Math.min(79, Math.floor(tokens.progress * 0.8)) : Math.min(99, tokens.progress), message: tokens.message };
+  state.lastProgress=result;return result;
 };
 
 const privacyAccountState = async (): Promise<PrivacyAccountState> => {
@@ -1186,7 +1194,7 @@ const handlePersonalSign = async (origin: string, params: unknown[]) => {
     if (!validOrigin || Number(loginChain) !== chainId || !nonce || displayMessage.split('\n')[1]?.toLowerCase() !== wallet.address.toLowerCase()) throw new RpcError(-32602, '登录消息的地址、网络、URI 或 Nonce 无效');
     if (expiry && (!Number.isFinite(Date.parse(expiry)) || Date.parse(expiry) <= Date.now())) throw new RpcError(-32602, '登录请求已过期');
   }
-  const approved = await requestApproval({ origin, kind: 'personal_sign', title: login ? '签名登录' : '签名消息', details: { 账户: wallet.address, 网络: NETWORKS[chainId].name, 消息: displayMessage, 操作: '签署消息；不会广播链上交易' } });
+  const approved = await requestApproval({ origin, kind: 'personal_sign', title: login ? '签名登录' : '签名消息', details: { 账户: wallet.address, 网络: NETWORKS[chainId].name, 消息: displayMessage, ...(isHexString(messageValue)?{原始消息:messageValue}:{}), 操作: '签署消息；不会广播链上交易' } });
   if (!approved) throw new RpcError(4001, '用户拒绝签名或请求已过期');
   await requireApprovedOrigin(origin);
   const currentWallet = requireUnlocked();
@@ -1422,9 +1430,9 @@ const prepareOperation = async (message: Record<string, unknown>, merge?: { plan
   }
   if (
     kind === 'unshield' &&
-    !(chainId === 143 && pool.address.toLowerCase() === '0xcb36e209ae44fafc75dc6820ae42d9400637f99e')
+    !unshieldAsset(chainId,pool.address)
   ) {
-    throw new Error('当前只开放已完成实现与回执审计的 Monad sUSDC Unshield');
+    throw new Error('此资产不支持 Unshield');
   }
   let amountRaw: bigint;
   try {
@@ -1508,7 +1516,7 @@ const prepareOperation = async (message: Record<string, unknown>, merge?: { plan
     amount: String(message.amount),
     fee: formatRawForReview(fees.feeRaw, fees.feeDecimals),
     feeSymbol: fees.feeSymbol,
-    receiveSymbol: kind === 'unshield' && chainId === 143 && pool.symbol === 'sUSDC' ? 'USDC' : pool.symbol,
+    receiveSymbol: kind === 'unshield' ? unshieldAsset(chainId,pool.address)!.symbol : pool.symbol,
     feePool: fees.feePool,
     paymentMode: fees.paymentMode,
     totalDebit: formatRawForReview((amountRaw + (kind === 'send' && fees.feePool.toLowerCase() === pool.address.toLowerCase() ? BigInt(fees.feeRaw) : 0n)).toString(), pool.decimals),
@@ -1572,32 +1580,7 @@ const verifyOperationReceipt = async (
     if (!spent) throw new Error('确认后输入 note 仍未标记为 spent');
   }
 
-  if (operation.kind === 'unshield') {
-    if (!operation.underlying || !operation.recipient || !operation.receiveRaw || !operation.feeRaw) {
-      throw new Error('Unshield 缺少到账回执约束');
-    }
-    let received = 0n;
-    let paidFee = 0n;
-    for (const log of receipt.logs) {
-      if (log.address.toLowerCase() !== operation.underlying.toLowerCase()) continue;
-      try {
-        const decoded = receiptTokenInterface.parseLog(log);
-        if (!decoded || String(decoded.args.from).toLowerCase() !== operation.transaction.to.toLowerCase()) {
-          continue;
-        }
-        const target = String(decoded.args.to).toLowerCase();
-        if (target === operation.recipient.toLowerCase()) received += BigInt(decoded.args.value);
-        else if (operation.feeCollector && target === operation.feeCollector.toLowerCase()) {
-          paidFee += BigInt(decoded.args.value);
-        } else throw new Error('Unshield 回执包含未知 USDC 收款方');
-      } catch (error) {
-        if (error instanceof Error && error.message.includes('未知 USDC')) throw error;
-      }
-    }
-    if (received !== BigInt(operation.receiveRaw) || paidFee !== BigInt(operation.feeRaw)) {
-      throw new Error('Unshield 实际到账或协议费与准备结果不一致');
-    }
-  }
+  if (operation.kind === 'unshield') verifyUnshieldReceipt(operation,receipt.logs);
 };
 
 interface RelayerJournal {
@@ -2205,7 +2188,7 @@ const sendDappPrivacyTransaction = async (origin: string, input: unknown) => {
   if (!settings.experimentalPrivacyWrites) throw new RpcError(4200, '请先在钱包设置中开启实验性隐私操作');
   const pool = NETWORKS[chainId].plabs?.pools.find(item => item.address.toLowerCase() === String(params.poolAddress).toLowerCase());
   if (pool && kind === 'shield' && (!pool.underlying || pool.nativeGateway)) throw new RpcError(4200, '当前仅支持普通 ERC-20 Shield');
-  if (pool && kind === 'unshield' && !(chainId === 143 && pool.symbol === 'sUSDC')) throw new RpcError(4200, '当前仅支持 Monad sUSDC Unshield');
+  if (pool && kind === 'unshield' && !unshieldAsset(chainId,pool.address)) throw new RpcError(4200, '此资产不支持 Unshield');
   if (!pool || typeof params.amount !== 'string' || !/^\d+(\.\d+)?$/.test(params.amount)) throw new RpcError(-32602, '资产池或金额无效');
   if (parseUnits(params.amount, pool.decimals) <= 0n) throw new RpcError(-32602, '金额必须大于 0');
   if (kind === 'send') parsePrivacyAddress(String(params.recipient ?? ''));
@@ -2506,7 +2489,7 @@ const dispatchDappRequest = async (request: ProviderRequest, origin: string) => 
       return { opened: await openWalletPopup() };
     }
     case 'plabs_getCapabilities':
-      return { version: 1, walletVersion: chrome.runtime.getManifest().version, methods: { personalSign: true, signTypedData: false, evmTransactions: false, evmPreview: true, privacyTransactions: true, privacyRead: true, privacyHistory: true, privacyNotes: true, dexOrders: true, dexTrading: true, unifiedConnect: true, privacyOwnership: true, jubjubBidding: true, sponsoredPrivacyTransfers: true, nftMinting: true, nftAssets: true }, networks: Object.values(NETWORKS).map(network => ({ chainId: network.chainId, name: network.name, nativeSymbol: network.nativeSymbol, pools: (network.plabs?.pools ?? []).map(pool => ({ address: pool.address, symbol: pool.symbol, decimals:pool.decimals, underlying:pool.underlying, canShield: Boolean(pool.underlying && !pool.nativeGateway), canUnshield: network.chainId === 143 && pool.symbol === 'sUSDC' })) })) };
+      return { version: 1, walletVersion: chrome.runtime.getManifest().version, methods: { personalSign: true, signTypedData: false, evmTransactions: false, evmPreview: true, privacyTransactions: true, privacyRead: true, privacyHistory: true, privacyNotes: true, dexOrders: true, dexTrading: true, unifiedConnect: true, privacyOwnership: true, jubjubBidding: true, sponsoredPrivacyTransfers: true, nftMinting: true, nftAssets: true }, networks: Object.values(NETWORKS).map(network => ({ chainId: network.chainId, name: network.name, nativeSymbol: network.nativeSymbol, pools: (network.plabs?.pools ?? []).map(pool => ({ address: pool.address, symbol: pool.symbol, decimals:pool.decimals, underlying:pool.underlying, canShield: Boolean(pool.underlying && !pool.nativeGateway), canUnshield: Boolean(unshieldAsset(network.chainId,pool.address)) })) })) };
     case 'plabs_requestPrivacyAccess':
       return privacyAccess.request(origin, params[0]);
     case 'plabs_getPrivacySession': {

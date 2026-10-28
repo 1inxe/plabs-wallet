@@ -1359,6 +1359,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         if (message.action === 'PRIVACY_NFT_MINT') return engine.mint(message.origin, message.pool, message.seedHex, message.id);
         throw new Error('未知 NFT 方法');
       };
+      if (message.action === 'PRIVACY_NFT_SYNC_PROGRESS') return nftContext(message.account,message.binding).assets.progress();
       if (message.action === 'PRIVACY_NFT_ASSETS') return nftContext(message.account, message.binding).assets.snapshot(message.includeTransfers === true);
       if (message.action === 'PRIVACY_NFT_LIST' && nftActive > 0) return nftContext(message.account, message.binding).engine.list(message.origin, false);
       if (message.action === 'PRIVACY_NFT_SYNC') {

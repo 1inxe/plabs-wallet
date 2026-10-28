@@ -86,6 +86,7 @@ export function PrivacyNotes({
   const [running, setRunning] = useState(false);
   const mounted = useRef(true);
   const sessionValid = useRef(true);
+  const readRevision = useRef(0);
   const planPageOpen = useRef(false);
   const openPlan = () => {
     planPageOpen.current = true;
@@ -123,11 +124,20 @@ export function PrivacyNotes({
       }
       if (area !== 'session') return;
       if (
+        changes.privacyUnlockSession?.newValue ||
+        changes.walletUnlockSession?.newValue
+      ) {
+        sessionValid.current = true;
+        readRevision.current++;
+        setRevision((value) => value + 1);
+      }
+      if (
         (changes.privacyUnlockSession &&
           !changes.privacyUnlockSession.newValue) ||
         (changes.walletUnlockSession && !changes.walletUnlockSession.newValue)
       ) {
         sessionValid.current = false;
+        readRevision.current++;
         setLoading(false);
         setBusy(false);
         setSyncing(false);
@@ -147,6 +157,7 @@ export function PrivacyNotes({
   useEffect(() => {
     if (!sessionValid.current) return;
     let active = true;
+    const revision = ++readRevision.current;
     setLoading(true);
     setError('');
     callWallet<PrivacyNotesPage>('GET_PRIVACY_NOTES', {
@@ -157,7 +168,12 @@ export function PrivacyNotes({
       pageSize,
     })
       .then((next) => {
-        if (!active || !sessionValid.current) return;
+        if (
+          !active ||
+          !sessionValid.current ||
+          revision !== readRevision.current
+        )
+          return;
         setData(next);
         if (next.page !== page) setPage(next.page);
         setSelected((previous) =>
@@ -174,10 +190,12 @@ export function PrivacyNotes({
         );
       })
       .catch((cause) => {
-        if (active && sessionValid.current) setError(errorText(cause));
+        if (active && sessionValid.current && revision === readRevision.current)
+          setError(errorText(cause));
       })
       .finally(() => {
-        if (active && sessionValid.current) setLoading(false);
+        if (active && sessionValid.current && revision === readRevision.current)
+          setLoading(false);
       });
     return () => {
       active = false;

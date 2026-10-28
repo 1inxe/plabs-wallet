@@ -1,3 +1,5 @@
+import { ApprovalDetails } from './approval-details';
+import { useDeadline } from './use-deadline';
 import { t } from '../i18n';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Globe, Lock, RefreshCw, ShieldCheck, X } from 'lucide-react';
@@ -98,13 +100,18 @@ export function DappRequestView({
   onSetupPrivacy: () => void;
 }) {
   const [password, setPassword] = useState('');
+  const inFlight = useRef(false);
+  const deadline = useDeadline(
+    task.approval ? task.approval.createdAt + 600_000 : undefined,
+  );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const terminal = task.phase === 'error';
   const needsPrivacy =
     !terminal && task.requiresPrivacy && task.privacyUnlocked === false;
   const action = async (work: () => Promise<unknown>) => {
-    if (busy) return;
+    if (busy || inFlight.current) return;
+    inFlight.current = true;
     setBusy(true);
     setError('');
     try {
@@ -113,6 +120,7 @@ export function DappRequestView({
     } catch (cause) {
       setError(walletErrorMessage(cause));
     } finally {
+      inFlight.current = false;
       setBusy(false);
     }
   };
@@ -132,7 +140,11 @@ export function DappRequestView({
       : (task.approval?.title ?? t('正在处理网站请求'));
   const confirmLabel =
     task.approval?.kind === 'personal_sign'
-      ? t('确认签名')
+      ? t(
+          task.approval.details.消息 !== undefined
+            ? '确认签名'
+            : '生成所有权证明',
+        )
       : task.approval?.title.includes('不广播')
         ? t('确认预览')
         : task.approval?.title.includes('第 1/2')
@@ -222,16 +234,14 @@ export function DappRequestView({
           </>
         ) : task.approval ? (
           <>
-            <div className="panel approval-fields">
-              {Object.entries(task.approval.details).map(([label, value]) => (
-                <div className="approval-field" key={label}>
-                  <small>{t(label)}</small>
-                  <p className={label === '消息' ? 'approval-message' : ''}>
-                    {label === '消息' ? value : t(value)}
-                  </p>
-                </div>
-              ))}
-            </div>
+            <ApprovalDetails details={task.approval.details} />
+            <p
+              className={`approval-deadline micro ${deadline.expired ? 'text-danger' : 'text-muted'}`}
+            >
+              {deadline.expired
+                ? t('请求已过期，请重新发起')
+                : t('确认有效期 {0}', [deadline.text])}
+            </p>
             <div className="approval-actions">
               <Button
                 disabled={busy}
@@ -248,7 +258,7 @@ export function DappRequestView({
               </Button>
               <Button
                 variant="primary"
-                disabled={busy}
+                disabled={busy || deadline.expired}
                 onClick={() =>
                   action(() =>
                     callWallet('APPROVAL_DECISION', {

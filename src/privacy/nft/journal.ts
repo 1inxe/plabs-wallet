@@ -1,10 +1,17 @@
+import type { NftSyncProgress } from '../sync-progress';
 import type { NftTransfer } from './transfer';
 import type { NftMintResult } from 'plabs-js-sdk';
 import { base64ToBytes, bytesToBase64 } from '../../shared/encoding';
 import type { Json, MintNote } from './protocol';
 
 export type MintState =
-  'reserved' | 'proving' | 'ready' | 'submitted' | 'confirmed' | 'failed' | 'review';
+  | 'reserved'
+  | 'proving'
+  | 'ready'
+  | 'submitted'
+  | 'confirmed'
+  | 'failed'
+  | 'review';
 export type MintRecord = {
   id: string;
   origin: string;
@@ -54,12 +61,18 @@ export type MintJournal = {
   syncComplete?: boolean;
   syncError?: string;
   syncProgress?: string;
+  syncStatus?: NftSyncProgress;
 };
-export const journalId = (privacy: string) => `nft-mints:v1:1:${privacy.toLowerCase()}`;
+export const journalId = (privacy: string) =>
+  `nft-mints:v1:1:${privacy.toLowerCase()}`;
 export async function seal(journal: MintJournal, id: string, key: CryptoKey) {
   const nonce = crypto.getRandomValues(new Uint8Array(12));
   const ciphertext = await crypto.subtle.encrypt(
-    { name: 'AES-GCM', iv: nonce, additionalData: new TextEncoder().encode(id) },
+    {
+      name: 'AES-GCM',
+      iv: nonce,
+      additionalData: new TextEncoder().encode(id),
+    },
     key,
     new TextEncoder().encode(JSON.stringify(journal)),
   );
@@ -69,7 +82,11 @@ export async function seal(journal: MintJournal, id: string, key: CryptoKey) {
     ciphertext: bytesToBase64(new Uint8Array(ciphertext)),
   };
 }
-export async function open(value: unknown, id: string, key: CryptoKey): Promise<MintJournal> {
+export async function open(
+  value: unknown,
+  id: string,
+  key: CryptoKey,
+): Promise<MintJournal> {
   if (value == null) return { schema: 1, records: [] };
   const box = value as { schema: number; nonce: string; ciphertext: string };
   if (box.schema !== 1) throw new Error('NFT 恢复记录版本无效');
@@ -83,11 +100,21 @@ export async function open(value: unknown, id: string, key: CryptoKey): Promise<
     Uint8Array.from(base64ToBytes(box.ciphertext)),
   );
   const journal = JSON.parse(new TextDecoder().decode(data)) as MintJournal;
-  if (journal.schema !== 1 || !Array.isArray(journal.records) || journal.records.length > 4096)
+  if (
+    journal.schema !== 1 ||
+    !Array.isArray(journal.records) ||
+    journal.records.length > 4096
+  )
     throw new Error('NFT 恢复记录损坏');
-  if (journal.holdings && (!Array.isArray(journal.holdings) || journal.holdings.length > 4096))
+  if (
+    journal.holdings &&
+    (!Array.isArray(journal.holdings) || journal.holdings.length > 4096)
+  )
     throw new Error('NFT 资产记录损坏');
-  if (journal.transfers && (!Array.isArray(journal.transfers) || journal.transfers.length > 4096))
+  if (
+    journal.transfers &&
+    (!Array.isArray(journal.transfers) || journal.transfers.length > 4096)
+  )
     throw new Error('NFT 发送记录损坏');
   return journal;
 }

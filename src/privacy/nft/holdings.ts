@@ -1,8 +1,21 @@
-import { decodePrivacyLog, NOTE_ADDED_TOPIC, LEGACY_NOTE_ADDED_TOPIC } from '../events';
+import { readRpcHistoryPage } from '../rpc-history-page';
+import {
+  decodePrivacyLog,
+  NOTE_ADDED_TOPIC,
+  LEGACY_NOTE_ADDED_TOPIC,
+} from '../events';
 import { reverseHexByByte } from '../operations';
 import { type NftPorts } from './engine';
 import { type MintJournal, type NftHolding } from './journal';
-import { NFT, address, hash, integer, nftInterface, object, raw } from './protocol';
+import {
+  NFT,
+  address,
+  hash,
+  integer,
+  nftInterface,
+  object,
+  raw,
+} from './protocol';
 
 /** NFT values are token IDs. They must never be summed into ERC20 balances. */
 export type NftAssetSummary = {
@@ -17,9 +30,18 @@ export type NftAssetSummary = {
   blockNumber: number;
   state: 'confirmed' | 'pending';
   source: 'chain' | 'mint';
-  transfer?: { id: string; recipient: string; state: string; txHash?: string; message?: string };
+  transfer?: {
+    id: string;
+    recipient: string;
+    state: string;
+    txHash?: string;
+    message?: string;
+  };
 };
-export function publicNftAssets(journal: MintJournal, includeTransfers = false) {
+export function publicNftAssets(
+  journal: MintJournal,
+  includeTransfers = false,
+) {
   const scanned = journal.holdings ?? [];
   const items: NftAssetSummary[] = scanned
     .filter((note) => !note.spent)
@@ -37,10 +59,12 @@ export function publicNftAssets(journal: MintJournal, includeTransfers = false) 
       source: 'chain' as const,
     }));
   for (const record of journal.records.filter(
-    (record) => record.note && record.mint && record.txHash && record.state !== 'failed',
+    (record) =>
+      record.note && record.mint && record.txHash && record.state !== 'failed',
   )) {
     const cmx = record.mint!.cmx;
-    if (scanned.some((note) => note.pool === record.pool && note.cmx === cmx)) continue;
+    if (scanned.some((note) => note.pool === record.pool && note.cmx === cmx))
+      continue;
     items.push({
       id: `${record.pool}:${cmx}`,
       chainId: 1,
@@ -55,13 +79,22 @@ export function publicNftAssets(journal: MintJournal, includeTransfers = false) 
       source: 'mint',
     });
   }
-  if (includeTransfers) for (const item of items) {
-    const transfer = [...(journal.transfers ?? [])].reverse().find(record => record.assetId === item.id && record.state !== 'failed');
-    if (transfer && transfer.state !== 'confirmed') item.transfer = {
-      id: transfer.id, recipient: transfer.recipient, state: transfer.state,
-      txHash: transfer.txHash, message: transfer.message,
-    };
-  }
+  if (includeTransfers)
+    for (const item of items) {
+      const transfer = [...(journal.transfers ?? [])]
+        .reverse()
+        .find(
+          (record) => record.assetId === item.id && record.state !== 'failed',
+        );
+      if (transfer && transfer.state !== 'confirmed')
+        item.transfer = {
+          id: transfer.id,
+          recipient: transfer.recipient,
+          state: transfer.state,
+          txHash: transfer.txHash,
+          message: transfer.message,
+        };
+    }
   return {
     items,
     syncedAt: journal.syncedAt ?? null,
@@ -78,18 +111,34 @@ export class NftAssetSync {
     await this.p.save(journal);
     await this.p.guard();
   }
-  private async view(to: string, method: string, args: unknown[], block: number) {
+  private async view(
+    to: string,
+    method: string,
+    args: unknown[],
+    block: number,
+  ) {
     const encoded = nftInterface.encodeFunctionData(method, args);
-    const data = await this.p.rpc('eth_call', [{ to, data: encoded }, `0x${block.toString(16)}`]);
+    const data = await this.p.rpc('eth_call', [
+      { to, data: encoded },
+      `0x${block.toString(16)}`,
+    ]);
     return nftInterface.decodeFunctionResult(method, String(data));
+  }
+  async progress() {
+    await this.p.guard();
+    const status = (await this.p.load()).syncStatus ?? null;
+    await this.p.guard();
+    return status;
   }
   async snapshot(includeTransfers = false) {
     await this.p.guard();
     return publicNftAssets(await this.p.load(), includeTransfers);
   }
   private async firstBlock(pool: string, target: number) {
-    const code = (block: number) => this.p.rpc('eth_getCode', [pool, `0x${block.toString(16)}`]);
-    if ((await code(target)) === '0x') throw new Error('NFT 合集尚未在当前确认区块部署');
+    const code = (block: number) =>
+      this.p.rpc('eth_getCode', [pool, `0x${block.toString(16)}`]);
+    if ((await code(target)) === '0x')
+      throw new Error('NFT 合集尚未在当前确认区块部署');
     let low = 0,
       high = target;
     while (low < high) {
@@ -105,29 +154,58 @@ export class NftAssetSync {
     const journal = await this.p.load();
     journal.holdings ??= [];
     journal.pools ??= {};
-    if (rescan) for (const cursor of Object.values(journal.pools)) {
-      cursor.cursor = cursor.firstBlock - 1;
-      cursor.blockHash = undefined;
-    }
+    if (rescan)
+      for (const cursor of Object.values(journal.pools)) {
+        cursor.cursor = cursor.firstBlock - 1;
+        cursor.blockHash = undefined;
+      }
     journal.syncError = undefined;
     journal.syncComplete = false;
     journal.syncProgress = '正在读取 Ethereum NFT 目录…';
+    journal.syncStatus = {
+      phase: 'catalog',
+      progress: 0,
+      collectionIndex: 0,
+      totalCollections: 0,
+      scannedBlocks: 0,
+      totalBlocks: 0,
+      updatedAt: Date.now(),
+    };
     await this.save(journal);
     try {
-      if ((await this.p.rpc('eth_chainId', [])) !== '0x1') throw new Error('NFT 同步网络不匹配');
-      const head = object(await this.p.rpc('eth_getBlockByNumber', ['latest', false]));
+      if ((await this.p.rpc('eth_chainId', [])) !== '0x1')
+        throw new Error('NFT 同步网络不匹配');
+      const head = object(
+        await this.p.rpc('eth_getBlockByNumber', ['latest', false]),
+      );
       const target = integer(Number(BigInt(String(head.number)))) - 1;
       if (target < 1) throw new Error('NFT 同步区块不可用');
-      const count = integer((await this.view(NFT.market, 'poolCount', [], target))[0]);
+      const count = integer(
+        (await this.view(NFT.market, 'poolCount', [], target))[0],
+      );
       if (count > 1000) throw new Error('NFT 目录规模超出单次同步范围');
       const seenPools = new Set<string>();
       for (let index = 0; index < count; index++) {
         await this.p.guard();
-        const pool = address((await this.view(NFT.market, 'pools', [index], target))[0]);
+        const pool = address(
+          (await this.view(NFT.market, 'pools', [index], target))[0],
+        );
         seenPools.add(pool);
+        journal.syncStatus = {
+          phase: 'discover',
+          progress: Math.floor((index / Math.max(1, count)) * 100),
+          collectionIndex: index + 1,
+          totalCollections: count,
+          scannedBlocks: 0,
+          totalBlocks: 0,
+          updatedAt: Date.now(),
+        };
+        await this.save(journal);
         if (
-          (await this.view(NFT.factory, 'isCollection', [pool], target))[0] !== true ||
-          address((await this.view(pool, 'minter', [], target))[0]) !== NFT.market
+          (await this.view(NFT.factory, 'isCollection', [pool], target))[0] !==
+            true ||
+          address((await this.view(pool, 'minter', [], target))[0]) !==
+            NFT.market
         )
           throw new Error('NFT 合集不属于已验证的发布合约');
         let cursor = journal.pools[pool];
@@ -153,32 +231,92 @@ export class NftAssetSync {
         }
         if (cursor.blockHash) {
           const canonical = object(
-            await this.p.rpc('eth_getBlockByNumber', [`0x${cursor.cursor.toString(16)}`, false]),
+            await this.p.rpc('eth_getBlockByNumber', [
+              `0x${cursor.cursor.toString(16)}`,
+              false,
+            ]),
           );
           if (canonical.hash !== cursor.blockHash) {
-            journal.holdings = journal.holdings.filter((note) => note.pool !== pool);
+            journal.holdings = journal.holdings.filter(
+              (note) => note.pool !== pool,
+            );
             cursor.cursor = cursor.firstBlock - 1;
             cursor.blockHash = undefined;
           }
         }
+        let logSpan = 1000;
+        const report = (phase: 'scan' | 'verify', cursorBlock: number) => {
+          const totalBlocks = Math.max(0, target - cursor.firstBlock + 1),
+            scannedBlocks = Math.max(
+              0,
+              Math.min(totalBlocks, cursorBlock - cursor.firstBlock + 1),
+            );
+          journal.syncStatus = {
+            phase,
+            progress: Math.min(
+              99,
+              Math.floor(
+                ((index +
+                  (phase === 'verify'
+                    ? 0.95
+                    : totalBlocks
+                      ? (scannedBlocks / totalBlocks) * 0.95
+                      : 0.95)) /
+                  Math.max(1, count)) *
+                  100,
+              ),
+            ),
+            collectionIndex: index + 1,
+            totalCollections: count,
+            name: cursor.name,
+            scannedBlocks,
+            totalBlocks,
+            updatedAt: Date.now(),
+          };
+        };
         let pages = 0;
         while (cursor.cursor < target) {
           if (++pages > 1000) throw new Error('NFT 历史尚未同步完，请继续同步');
           journal.syncProgress = `正在同步 ${cursor.name}（${index + 1}/${count}）…`;
-          const from = cursor.cursor + 1,
-            to = Math.min(target, from + 999);
-          const logs = await this.p.rpc('eth_getLogs', [
-            {
-              address: pool,
-              fromBlock: `0x${from.toString(16)}`,
-              toBlock: `0x${to.toString(16)}`,
-              topics: [[NOTE_ADDED_TOPIC, LEGACY_NOTE_ADDED_TOPIC]],
+          report('scan', cursor.cursor);
+          if (pages === 1) await this.save(journal);
+          const from = cursor.cursor + 1;
+          const page = await readRpcHistoryPage({
+            afterBlock: cursor.cursor,
+            targetBlock: target,
+            maxSpan: 1000,
+            knownSpan: logSpan,
+            read: async (from, to) => {
+              const checkpoint = object(
+                await this.p.rpc('eth_getBlockByNumber', [
+                  `0x${to.toString(16)}`,
+                  false,
+                ]),
+              );
+              const logs = await this.p.rpc('eth_getLogs', [
+                {
+                  address: pool,
+                  fromBlock: `0x${from.toString(16)}`,
+                  toBlock: `0x${to.toString(16)}`,
+                  topics: [[NOTE_ADDED_TOPIC, LEGACY_NOTE_ADDED_TOPIC]],
+                },
+              ]);
+              return { logs, checkpoint: hash(checkpoint.hash) };
             },
-          ]);
-          if (!Array.isArray(logs) || logs.length > 5000) throw new Error('NFT 链上日志无效或过多');
+          });
+          const logs = page.value.logs,
+            to = page.toBlock;
+          logSpan = page.span;
+          if (!Array.isArray(logs) || logs.length > 5000)
+            throw new Error('NFT 链上日志无效或过多');
           const candidates = logs.map(object).map((log) => {
             const block = integer(Number(BigInt(String(log.blockNumber))));
-            if (address(log.address) !== pool || block < from || block > to || log.removed === true)
+            if (
+              address(log.address) !== pool ||
+              block < from ||
+              block > to ||
+              log.removed === true
+            )
               throw new Error('NFT 日志范围或链上状态不符');
             const decoded = decodePrivacyLog(log);
             if (
@@ -190,13 +328,17 @@ export class NftAssetSync {
               throw new Error('NFT 日志类型无效');
             return decoded;
           });
+          const discovered: NftHolding[] = [];
           for (let offset = 0; offset < candidates.length; offset += 128) {
             const batch = candidates.slice(offset, offset + 128);
             const owned = await this.p.scan(batch);
             for (const result of owned) {
               const cmx = hash(result.note.cmx_hex);
               const source = batch.find((item) => item.cmx === cmx);
-              if (!source || !/^[1-9][0-9]{0,5}$/.test(String(result.note.value_sats)))
+              if (
+                !source ||
+                !/^[1-9][0-9]{0,5}$/.test(String(result.note.value_sats))
+              )
                 throw new Error('NFT 私有 Note 与链上输出不符');
               const holding: NftHolding = {
                 pool,
@@ -227,25 +369,72 @@ export class NftAssetSync {
               )
                 throw new Error('NFT Note 尚未由合约确认');
               holding.spent = spent[0];
-              const previous = journal.holdings.findIndex(
-                (note) => note.pool === pool && note.cmx === cmx,
-              );
-              if (previous >= 0) journal.holdings[previous] = holding;
-              else journal.holdings.push(holding);
-              if (journal.holdings.length > 4096) throw new Error('NFT 私有记录超出同步上限');
+              discovered.push(holding);
             }
           }
           const block = object(
-            await this.p.rpc('eth_getBlockByNumber', [`0x${to.toString(16)}`, false]),
+            await this.p.rpc('eth_getBlockByNumber', [
+              `0x${to.toString(16)}`,
+              false,
+            ]),
           );
+          if (hash(block.hash) !== page.value.checkpoint)
+            throw new Error('NFT 历史区块已变化，请继续同步');
+          const identifiers = new Set(
+            journal.holdings.map((note) => note.pool + ':' + note.cmx),
+          );
+          for (const note of discovered)
+            identifiers.add(note.pool + ':' + note.cmx);
+          if (identifiers.size > 4096)
+            throw new Error('NFT 私有记录超出同步上限');
+          for (const note of discovered) {
+            const previous = journal.holdings.findIndex(
+              (item) => item.pool === note.pool && item.cmx === note.cmx,
+            );
+            if (previous >= 0) journal.holdings[previous] = note;
+            else journal.holdings.push(note);
+          }
           cursor.cursor = to;
           cursor.blockHash = hash(block.hash);
+          report('scan', to);
           await this.save(journal);
         }
+        report('verify', cursor.cursor);
+        const ownedNotes = journal.holdings.filter(
+          (note) => note.pool === pool,
+        );
+        journal.syncStatus!.verifiedNotes = 0;
+        journal.syncStatus!.totalNotes = ownedNotes.length;
+        const checked = async () => {
+          const status = journal.syncStatus!;
+          status.verifiedNotes!++;
+          status.updatedAt = Date.now();
+          status.progress = Math.min(
+            99,
+            Math.floor(
+              ((index +
+                0.95 +
+                (0.05 * status.verifiedNotes!) /
+                  Math.max(1, ownedNotes.length)) /
+                Math.max(1, count)) *
+                100,
+            ),
+          );
+          if (
+            status.verifiedNotes! % 8 === 0 ||
+            status.verifiedNotes === ownedNotes.length
+          )
+            await this.save(journal);
+        };
+        await this.save(journal);
         // The nullifier is derived locally; no note opening or viewing key leaves the extension.
-        for (const note of journal.holdings.filter((note) => note.pool === pool)) {
-          if (rescan && (await this.view(pool, 'cmxExists', [note.cmx], target))[0] !== true) {
+        for (const note of ownedNotes) {
+          if (
+            rescan &&
+            (await this.view(pool, 'cmxExists', [note.cmx], target))[0] !== true
+          ) {
             note.spent = true;
+            await checked();
             continue;
           }
           const spent = (
@@ -256,25 +445,39 @@ export class NftAssetSync {
               target,
             )
           )[0];
-          if (typeof spent !== 'boolean') throw new Error('NFT 花费状态无法核对');
+          if (typeof spent !== 'boolean')
+            throw new Error('NFT 花费状态无法核对');
           note.spent = spent;
+          await checked();
         }
         for (const record of journal.records.filter(
           (record) =>
-            record.pool === pool && record.mint && record.txHash && record.state === 'confirmed',
+            record.pool === pool &&
+            record.mint &&
+            record.txHash &&
+            record.state === 'confirmed',
         )) {
-          if (journal.holdings.some((note) => note.pool === pool && note.cmx === record.mint!.cmx))
+          if (
+            journal.holdings.some(
+              (note) => note.pool === pool && note.cmx === record.mint!.cmx,
+            )
+          )
             continue;
-          const exists = (await this.view(pool, 'cmxExists', [record.mint!.cmx], target))[0];
+          const exists = (
+            await this.view(pool, 'cmxExists', [record.mint!.cmx], target)
+          )[0];
           if (exists !== true) {
             record.state = 'submitted';
             record.stage = 'confirming';
             record.message = 'NFT 输出尚未进入当前确认区块，请继续核对原交易';
-          } else throw new Error('已确认 NFT 的私有 Note 尚未完成扫描，请继续同步');
+          } else
+            throw new Error('已确认 NFT 的私有 Note 尚未完成扫描，请继续同步');
         }
         await this.save(journal);
       }
-      journal.holdings = journal.holdings.filter((note) => seenPools.has(note.pool));
+      journal.holdings = journal.holdings.filter((note) =>
+        seenPools.has(note.pool),
+      );
       for (const pool of Object.keys(journal.pools))
         if (!seenPools.has(pool)) delete journal.pools[pool];
       for (const record of journal.records.filter(
@@ -286,9 +489,24 @@ export class NftAssetSync {
       }
       journal.syncedAt = Date.now();
       journal.syncComplete = true;
+      journal.syncStatus = {
+        phase: 'complete',
+        progress: 100,
+        collectionIndex: count,
+        totalCollections: count,
+        scannedBlocks: 0,
+        totalBlocks: 0,
+        updatedAt: Date.now(),
+      };
       journal.syncProgress = undefined;
     } catch (error) {
-      journal.syncError = error instanceof Error ? error.message : 'NFT 同步失败';
+      journal.syncStatus = {
+        ...journal.syncStatus!,
+        phase: 'error',
+        updatedAt: Date.now(),
+      };
+      journal.syncError =
+        error instanceof Error ? error.message : 'NFT 同步失败';
       journal.syncProgress = undefined;
     }
     await this.save(journal);

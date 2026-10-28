@@ -1,3 +1,8 @@
+import { AssetSyncProgressBar } from '../ui/asset-sync-progress';
+import type { AssetSyncProgress } from '../privacy/sync-progress';
+import { NetworkIcon } from '../ui/network-icon';
+import { officialAssets } from '../privacy/official-assets';
+import { unshieldAsset } from '../privacy/unshield';
 import { initializeLanguage } from '../i18n';
 import { useLanguage } from '../i18n/react';
 import { LanguageSettings } from '../ui/language-settings';
@@ -66,9 +71,8 @@ import {
 } from '../ui/wallet-design';
 import { parsePrivacyAddress } from '../privacy/address';
 import { isAddress, parseUnits } from 'ethers';
-import * as Tabs from '@radix-ui/react-tabs';
 import { QRCodeSVG } from 'qrcode.react';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import {
   ArrowDownLeft,
@@ -473,27 +477,40 @@ function AccountContext({
       setSwitching(false);
     }
   };
+  const preferredAddress =
+    privacy?.privacyAddress ||
+    state.accounts.find((a) => a.id === state.activeAccountId)
+      ?.privacyAddress ||
+    state.address ||
+    '';
+  const isPrivateAddress = preferredAddress.startsWith('perc1');
   return (
     <>
       <header className="account-header">
-        <button
-          className="account-pill"
-          aria-label={t('选择账户')}
-          onClick={openAccounts}
-        >
-          <AccountAvatar
-            address={state.address ?? state.activeAccountId ?? ''}
-          />
-          <span>
-            <strong>
-              {state.accountName}
+        <div className="account-identity">
+          <AccountAvatar address={preferredAddress} />
+          <div className="account-details">
+            <button
+              className="account-name"
+              aria-label={t('选择账户')}
+              onClick={openAccounts}
+            >
+              <strong>{state.accountName}</strong>
               <ChevronDown size={12} />
-            </strong>
-            <small>{shortAddress(state.address ?? '', 6, 4)}</small>
-          </span>
-        </button>
+            </button>
+            <div className="account-address-line">
+              <span className="mono" title={preferredAddress}>
+                {shortAddress(preferredAddress, 8, 4)}
+              </span>
+              <CopyButton
+                compact
+                value={preferredAddress}
+                label={t(isPrivateAddress ? '复制隐私地址' : '复制公开地址')}
+              />
+            </div>
+          </div>
+        </div>
         <div className="network-pill">
-          <span className="status-dot amber" />
           <Select
             ariaLabel={t('选择网络')}
             value={String(state.chainId)}
@@ -509,17 +526,11 @@ function AccountContext({
             options={Object.values(NETWORKS).map((n) => ({
               value: String(n.chainId),
               label: n.name,
+              icon: <NetworkIcon chainId={n.chainId} />,
               description: n.plabs
                 ? t('EVM 公开资产 \u00B7 支持隐私池')
                 : t('仅支持 EVM 公开资产'),
             }))}
-          />
-        </div>
-        <div className="account-header-copy">
-          <CopyButton
-            compact
-            value={state.address ?? ''}
-            label={t('复制公开地址')}
           />
         </div>
       </header>
@@ -883,39 +894,30 @@ function AssetRow({
 }
 function AddAssetPage({
   chainId,
-  privacyEnabled,
-  initialMode = 'public',
-  onClose,
   onAdded,
+  onClose,
 }: {
   chainId: ChainId;
-  privacyEnabled: boolean;
-  initialMode?: 'public' | 'privacy';
-  onClose: () => void;
   onAdded: () => void;
+  onClose: () => void;
 }) {
-  const network = NETWORKS[chainId];
-  const [mode, setMode] = useState<'public' | 'privacy'>(initialMode);
-  const [address, setAddress] = useState('');
-  const [poolAddress, setPoolAddress] = useState(
-    network.plabs?.pools[0]?.address ?? '',
-  );
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
+  const [address, setAddress] = useState(''),
+    [busy, setBusy] = useState(false),
+    [error, setError] = useState('');
+  const inFlight = useRef(false);
   const add = async () => {
-    if (busy) return;
+    if (busy || inFlight.current || !isAddress(address.trim())) return;
+    inFlight.current = true;
     setBusy(true);
     setError('');
     try {
-      if (mode === 'public')
-        await callWallet('ADD_PUBLIC_ASSET', { address: address.trim() });
-      else
-        await callWallet('ADD_VISIBLE_PRIVACY_ASSET', { chainId, poolAddress });
+      await callWallet('ADD_PUBLIC_ASSET', { address: address.trim() });
       onAdded();
       onClose();
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : String(cause));
+      setError(errorText(cause));
     } finally {
+      inFlight.current = false;
       setBusy(false);
     }
   };
@@ -923,82 +925,40 @@ function AddAssetPage({
     <PageView
       open
       busy={busy}
-      onOpenChange={(open) => !open && onClose()}
-      title={t('添加资产')}
-      description={network.name}
+      onOpenChange={onClose}
+      title={t('添加公开代币')}
+      description={NETWORKS[chainId].name}
       footer={
         <Button
           className="w-full"
           variant="primary"
-          disabled={
-            busy ||
-            (mode === 'public' ? !isAddress(address.trim()) : !poolAddress)
-          }
+          disabled={busy || !isAddress(address.trim())}
           onClick={add}
         >
-          {busy ? t('读取资产\u2026') : t('添加')}
+          {busy ? t('读取资产…') : t('添加')}
         </Button>
       }
     >
-      <Tabs.Root
-        value={mode}
-        onValueChange={(value) => setMode(value as 'public' | 'privacy')}
+      <Field
+        label={t('ERC-20 合约地址')}
+        error={
+          address && !isAddress(address.trim())
+            ? t('请输入有效的 EVM 合约地址')
+            : undefined
+        }
       >
-        <Tabs.List className="mb-4 grid grid-cols-2 rounded-lg bg-surface p-1">
-          <Tabs.Trigger
-            value="public"
-            className="h-10 rounded-md text-sm text-muted data-[state=active]:bg-raised data-[state=active]:font-semibold data-[state=active]:text-ink"
-          >
-            {t('公开资产')}
-          </Tabs.Trigger>
-          <Tabs.Trigger
-            value="privacy"
-            disabled={!privacyEnabled || !network.plabs}
-            className="h-10 rounded-md text-sm text-muted data-[state=active]:bg-raised data-[state=active]:font-semibold data-[state=active]:text-ink disabled:opacity-40"
-          >
-            {t('隐私资产')}
-          </Tabs.Trigger>
-        </Tabs.List>
-      </Tabs.Root>
-      {mode === 'public' ? (
-        <Field
-          label={t('ERC-20 合约地址')}
-          hint={t('从当前网络读取代币信息；不代表已接入价格报价。')}
-          error={
-            address && !isAddress(address.trim())
-              ? t('请输入有效的 EVM 合约地址')
-              : undefined
-          }
-        >
-          <Input
-            value={address}
-            onChange={(event) => setAddress(event.target.value)}
-            placeholder="0x…"
-            spellCheck={false}
-          />
-        </Field>
-      ) : (
-        <Field label={t('已审核隐私资产')}>
-          <Select
-            ariaLabel={t('选择隐私资产')}
-            className="w-full"
-            value={poolAddress}
-            onValueChange={setPoolAddress}
-            options={(network.plabs?.pools ?? []).map((pool) => ({
-              value: pool.address,
-              label: `${pool.symbol} · ${shortAddress(pool.address)}`,
-            }))}
-          />
-        </Field>
-      )}
-      {error && (
-        <div className="mt-3">
-          <ErrorBox>{t(error)}</ErrorBox>
-        </div>
-      )}
+        <Input
+          value={address}
+          onChange={(event) => setAddress(event.target.value)}
+          placeholder="0x…"
+          spellCheck={false}
+        />
+      </Field>
+      {error && <ErrorBox>{error}</ErrorBox>}
     </PageView>
   );
 }
+
 function AssetHome({
   state,
   privacy,
@@ -1020,7 +980,7 @@ function AssetHome({
   const [assets, setAssets] = useState<PublicAssetBalance[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [adding, setAdding] = useState<'public' | 'privacy' | null>(null);
+  const [adding, setAdding] = useState(false);
   const [assetRevision, setAssetRevision] = useState(0);
   const market = useMarketPrices(
     state.chainId,
@@ -1056,13 +1016,13 @@ function AssetHome({
         state={state}
         privacyState={privacy}
         onPrivacyChange={onPrivacyChange}
-        onAddAsset={() => setAdding('privacy')}
         assetRevision={assetRevision}
         onSettings={onSettings}
         screen={screen}
         publicBalances={assets}
         market={market}
         onPublicAction={setPublicAction}
+        onPublicBalancesChange={() => void refresh()}
         balancesHidden={balancesHidden}
         onBalancesHiddenChange={onBalancesHiddenChange}
         publicAssets={
@@ -1078,10 +1038,7 @@ function AssetHome({
                   className={loading ? 'animate-spin' : ''}
                 />
               </IconButton>
-              <IconButton
-                label={t('添加资产')}
-                onClick={() => setAdding('public')}
-              >
+              <IconButton label={t('添加资产')} onClick={() => setAdding(true)}>
                 <Plus size={16} />
               </IconButton>
             </div>
@@ -1124,10 +1081,8 @@ function AssetHome({
       />
       {adding && (
         <AddAssetPage
-          initialMode={adding}
           chainId={state.chainId}
-          privacyEnabled={Boolean(privacy?.unlocked)}
-          onClose={() => setAdding(null)}
+          onClose={() => setAdding(false)}
           onAdded={() => {
             void refresh();
             setAssetRevision((v) => v + 1);
@@ -1616,11 +1571,8 @@ function ActionPage({
           return Boolean(config?.underlying && !config.nativeGateway);
         })
       : kind === 'unshield'
-        ? snapshots.filter(
-            (snapshot) =>
-              chainId === 143 &&
-              snapshot.poolAddress.toLowerCase() ===
-                '0xcb36e209ae44fafc75dc6820ae42d9400637f99e',
+        ? snapshots.filter((snapshot) =>
+            Boolean(unshieldAsset(chainId, snapshot.poolAddress)),
           )
         : snapshots;
   const [asset, setAsset] = useState(availableSnapshots[0]?.poolAddress ?? '');
@@ -2370,6 +2322,14 @@ function ActionPage({
                 <div className="amount-hint">{t('仅授权本次存入金额')}</div>
               )}
             </section>
+            {kind === 'unshield' && current && (
+              <p className="micro text-muted">
+                {t('将 {0} 提取为公开 {1}', [
+                  current.symbol,
+                  unshieldAsset(chainId, current.poolAddress)?.symbol ?? '',
+                ])}
+              </p>
+            )}
             <PaymentModeControl
               nativeSymbol={network.nativeSymbol}
               disabled={busy}
@@ -2491,7 +2451,6 @@ function PrivacyHome({
   state,
   privacyState,
   onPrivacyChange,
-  onAddAsset,
   assetRevision,
   onSettings,
   publicAssets,
@@ -2499,13 +2458,13 @@ function PrivacyHome({
   publicBalances,
   market,
   onPublicAction,
+  onPublicBalancesChange,
   balancesHidden,
   onBalancesHiddenChange,
 }: {
   state: WalletState;
   privacyState: PrivacyAccountState | null;
   onPrivacyChange: (privacy: PrivacyAccountState) => void;
-  onAddAsset: () => void;
   assetRevision: number;
   onSettings: () => void;
   publicAssets: React.ReactNode;
@@ -2515,6 +2474,7 @@ function PrivacyHome({
     refresh: () => void;
   };
   onPublicAction: (action: 'send' | 'receive') => void;
+  onPublicBalancesChange: () => void;
   balancesHidden: boolean;
   onBalancesHiddenChange: React.Dispatch<React.SetStateAction<boolean>>;
 }) {
@@ -2525,15 +2485,27 @@ function PrivacyHome({
   const [snapshots, setSnapshots] = useState<PrivacyPoolSnapshot[]>([]);
   const [action, setAction] = useState<PrivacyAction>(null);
   const [actionVisit, setActionVisit] = useState(0);
+  const actionScroll = useRef<number | null>(null);
   const openAction = (next: PrivacyAction) => {
+    if (!action && next) actionScroll.current = window.scrollY;
     setActionVisit((visit) => visit + 1);
     setAction(next);
   };
+  useLayoutEffect(() => {
+    if (action || actionScroll.current === null) return;
+    window.scrollTo(0, actionScroll.current);
+    actionScroll.current = null;
+  }, [action]);
   const [setup, setSetup] = useState<'create' | 'import' | null>(null);
   const [unlockOpen, setUnlockOpen] = useState(false);
   const setBalancesHidden = onBalancesHiddenChange;
-  const [scope, setScope] = useState<AssetScope>('private');
+  const [scope, setScope] = useState<AssetScope>(
+    NETWORKS[state.chainId].plabs ? 'private' : 'public',
+  );
   const [writesEnabled, setWritesEnabled] = useState(false);
+  const [permissionsOpen, setPermissionsOpen] = useState(false);
+  const [permissionsBusy, setPermissionsBusy] = useState(false);
+  const [permissionsError, setPermissionsError] = useState('');
   useEffect(() => {
     let active = true;
     callWallet<TransactionSettings>('GET_TRANSACTION_SETTINGS')
@@ -2547,17 +2519,14 @@ function PrivacyHome({
       active = false;
     };
   }, []);
-  const [showZero, setShowZero] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const [syncStatus, setSyncStatus] = useState<PrivacySyncProgress | null>(
-    null,
-  );
-  const [visiblePools, setVisiblePools] = useState<string[]>([]);
+  const [syncStatus, setSyncStatus] = useState<AssetSyncProgress | null>(null);
   const [now, setNow] = useState(Date.now());
   const automaticSyncKey = useRef('');
   const mounted = useRef(true);
   const syncRunning = useRef(false);
+  const privacyReadRevision = useRef(0);
   const [assetSyncRevision, setAssetSyncRevision] = useState(0);
   const network = NETWORKS[chainId];
   useEffect(() => {
@@ -2567,14 +2536,16 @@ function PrivacyHome({
     };
   }, []);
   const refresh = async () => {
+    const revision = ++privacyReadRevision.current;
     const next = await callWallet<PrivacyAccountState>('GET_PRIVACY_STATE');
-    if (!mounted.current) return;
+    if (!mounted.current || revision !== privacyReadRevision.current) return;
     setPrivacy(next);
     onPrivacyChange(next);
     const values = next.unlocked
       ? await callWallet<PrivacyPoolSnapshot[]>('GET_PRIVACY_SNAPSHOTS')
       : [];
-    if (mounted.current) setSnapshots(values);
+    if (mounted.current && revision === privacyReadRevision.current)
+      setSnapshots(values);
   };
   const safeRefresh = () => {
     void refresh().catch(
@@ -2585,10 +2556,30 @@ function PrivacyHome({
     setPrivacy(privacyState);
   }, [privacyState]);
   useEffect(() => {
+    const listener = (
+      changes: Record<string, chrome.storage.StorageChange>,
+      area: string,
+    ) => {
+      if (area === 'local' && changes.transactionSettings)
+        void callWallet<TransactionSettings>('GET_TRANSACTION_SETTINGS')
+          .then((settings) => {
+            if (mounted.current)
+              setWritesEnabled(settings.experimentalPrivacyWrites);
+          })
+          .catch(() => {});
+      if (
+        (area === 'session' &&
+          (changes.privacyUnlockSession || changes.walletUnlockSession)) ||
+        (area === 'local' && changes.privacyAccounts)
+      ) {
+        safeRefresh();
+      }
+    };
+    chrome.storage.onChanged.addListener(listener);
+    return () => chrome.storage.onChanged.removeListener(listener);
+  }, []);
+  useEffect(() => {
     safeRefresh();
-    callWallet<string[]>('GET_VISIBLE_PRIVACY_ASSETS', { chainId })
-      .then((value) => mounted.current && setVisiblePools(value))
-      .catch((cause) => setError(errorText(cause)));
   }, [chainId, assetRevision]);
   const sync = async (rescan = false) => {
     if (syncRunning.current) return;
@@ -2618,7 +2609,7 @@ function PrivacyHome({
       }
       if (mounted.current) {
         try {
-          const progress = await callWallet<PrivacySyncProgress>(
+          const progress = await callWallet<AssetSyncProgress>(
             'GET_PRIVACY_SYNC_PROGRESS',
             { chainId },
           );
@@ -2638,10 +2629,19 @@ function PrivacyHome({
   useEffect(() => {
     if (!busy) return;
     let active = true;
-    const update = () =>
-      callWallet<PrivacySyncProgress>('GET_PRIVACY_SYNC_PROGRESS', { chainId })
+    let polling = false;
+    const update = () => {
+      if (polling) return;
+      polling = true;
+      return callWallet<AssetSyncProgress>('GET_PRIVACY_SYNC_PROGRESS', {
+        chainId,
+      })
         .then((value) => active && mounted.current && setSyncStatus(value))
-        .catch(() => {});
+        .catch(() => {})
+        .finally(() => {
+          polling = false;
+        });
+    };
     void update();
     const timer = window.setInterval(update, 1000);
     return () => {
@@ -2699,12 +2699,10 @@ function PrivacyHome({
       setError(errorText(cause));
     }
   };
-  const current = snapshots.filter((snapshot) => snapshot.chainId === chainId);
-  const visible = current.filter(
-    (snapshot) =>
-      showZero ||
-      BigInt(snapshot.totalBalanceRaw) > 0n ||
-      visiblePools.includes(snapshot.poolAddress.toLowerCase()),
+  const current = officialAssets(
+    chainId,
+    snapshots,
+    privacy?.privacyAddress ?? '',
   );
   const complete =
     current.length > 0 &&
@@ -2712,17 +2710,8 @@ function PrivacyHome({
     (chainId !== 1 || syncStatus?.status === 'complete');
   const privateAssets = privacy?.unlocked ? (
     <section className="panel private-assets">
-      <div className="asset-list-tools">
-        <button
-          className="text-toggle"
-          aria-pressed={showZero}
-          onClick={() => setShowZero((value) => !value)}
-        >
-          {showZero ? t('隐藏零余额') : t('显示全部')}
-        </button>
-      </div>
-      {visible.length ? (
-        visible.map((snapshot) => (
+      {current.length ? (
+        current.map((snapshot) => (
           <AssetRow
             onChanged={safeRefresh}
             key={snapshot.poolAddress}
@@ -2738,16 +2727,21 @@ function PrivacyHome({
             detail={
               balancesHidden
                 ? t('余额与凭证数量已隐藏')
-                : t('可花费 {0} \u00B7 待确认 {1}', [
-                    formatRaw(snapshot.spendableBalanceRaw, snapshot.decimals),
-                    formatRaw(
-                      (
-                        BigInt(snapshot.totalBalanceRaw) -
-                        BigInt(snapshot.spendableBalanceRaw)
-                      ).toString(),
-                      snapshot.decimals,
-                    ),
-                  ])
+                : !snapshot.syncedAt
+                  ? t('尚未同步')
+                  : t('可花费 {0} \u00B7 待确认 {1}', [
+                      formatRaw(
+                        snapshot.spendableBalanceRaw,
+                        snapshot.decimals,
+                      ),
+                      formatRaw(
+                        (
+                          BigInt(snapshot.totalBalanceRaw) -
+                          BigInt(snapshot.spendableBalanceRaw)
+                        ).toString(),
+                        snapshot.decimals,
+                      ),
+                    ])
             }
           />
         ))
@@ -2756,10 +2750,6 @@ function PrivacyHome({
           {busy ? t('正在查找隐私资产\u2026') : t('当前链暂无非零隐私资产')}
         </EmptyState>
       )}
-      <button className="add-asset" onClick={onAddAsset}>
-        <Plus size={14} />
-        {t('添加代币')}
-      </button>
     </section>
   ) : (
     <section className="panel">
@@ -2812,7 +2802,7 @@ function PrivacyHome({
         disabled={busy || !privacy?.unlocked || !network.plabs}
         onClick={() => void sync()}
       >
-        <RefreshCw size={13} className={busy ? 'animate-spin' : ''} />
+        <RefreshCw size={13} />
         <span>
           {busy
             ? t('同步中')
@@ -2877,7 +2867,7 @@ function PrivacyHome({
               (market.unavailable || valuation.unpriced > 0) && (
                 <span className="market-coverage">
                   {valuation.unpriced > 0
-                    ? t('{0} 种资产暂无报价 \u00B7 暂按 US$0.00', [
+                    ? t('{0} 种资产暂无报价 \u00B7 暂按 $0.00', [
                         valuation.unpriced,
                       ])
                     : t('行情暂未更新')}
@@ -2886,6 +2876,7 @@ function PrivacyHome({
           </section>
           <div className="wallet-actions">
             <button
+              disabled={scope === 'private' && !network.plabs}
               onClick={() =>
                 scope === 'public'
                   ? onPublicAction('send')
@@ -2898,6 +2889,7 @@ function PrivacyHome({
               <strong>{t('发送')}</strong>
             </button>
             <button
+              disabled={scope === 'private' && !network.plabs}
               onClick={() =>
                 scope === 'public'
                   ? onPublicAction('receive')
@@ -2919,8 +2911,8 @@ function PrivacyHome({
               <strong>{t('存入')}</strong>
             </button>
             <button
-              disabled={chainId !== 143}
-              title={chainId !== 143 ? t('当前网络暂不支持提取') : undefined}
+              disabled={!network.plabs}
+              title={t('Unshield：转换到公开资产')}
               onClick={() => requirePrivacy('unshield')}
             >
               <span>
@@ -2930,6 +2922,7 @@ function PrivacyHome({
             </button>
           </div>
           {health}
+          {busy && <AssetSyncProgressBar value={syncStatus} />}
           {error && (
             <SyncNotice
               error={t(error)}
@@ -2942,7 +2935,13 @@ function PrivacyHome({
             onChange={setScope}
             publicAssets={publicAssets}
             privateAssets={
-              privacy?.unlocked ? (
+              !network.plabs ? (
+                <EmptyState>
+                  {t(
+                    '当前网络仅支持公开资产，请切换至 Ethereum 或 Monad 查看隐私资产',
+                  )}
+                </EmptyState>
+              ) : privacy?.unlocked ? (
                 privateAssets
               ) : (
                 <section className="privacy-onboarding">
@@ -2972,9 +2971,10 @@ function PrivacyHome({
               disabled={busy || !privacy?.unlocked || !network.plabs}
               onClick={() => void sync()}
             >
-              <RefreshCw size={18} className={busy ? 'animate-spin' : ''} />
+              <RefreshCw size={18} className={busy ? 'sync-active' : ''} />
             </IconButton>
           </div>
+          {busy && <AssetSyncProgressBar value={syncStatus} />}
           {!privacy?.unlocked ? (
             <section className="privacy-onboarding">
               <Lock size={23} />
@@ -3019,6 +3019,40 @@ function PrivacyHome({
           }}
         />
       )}
+      <PageView
+        open={permissionsOpen}
+        onOpenChange={setPermissionsOpen}
+        busy={permissionsBusy}
+        title={t('隐私交易设置')}
+      >
+        <p className="micro text-muted">
+          {t(
+            '开启后可发起隐私发送、存入、提取和 NFT 操作。每笔交易仍需单独确认。',
+          )}
+        </p>
+        {permissionsError && <ErrorBox>{permissionsError}</ErrorBox>}
+        <Button
+          variant="primary"
+          disabled={permissionsBusy}
+          onClick={async () => {
+            if (permissionsBusy) return;
+            setPermissionsBusy(true);
+            try {
+              await callWallet('SET_TRANSACTION_SETTINGS', {
+                experimentalPrivacyWrites: true,
+              });
+              setWritesEnabled(true);
+              setPermissionsOpen(false);
+            } catch (cause) {
+              setPermissionsError(errorText(cause));
+            } finally {
+              setPermissionsBusy(false);
+            }
+          }}
+        >
+          {permissionsBusy ? t('保存中…') : t('开启隐私交易')}
+        </Button>
+      </PageView>
       {action && privacy?.unlocked && (
         <ActionPage
           accounts={state.accounts}
@@ -3030,13 +3064,14 @@ function PrivacyHome({
           publicAddress={state.address ?? ''}
           writesEnabled={writesEnabled}
           onSettings={() => {
-            setAction(null);
-            onSettings();
+            setPermissionsError('');
+            setPermissionsOpen(true);
           }}
           snapshots={current}
           chainId={chainId}
           onCompleted={() => {
             safeRefresh();
+            onPublicBalancesChange();
             void sync();
           }}
         />
@@ -3309,7 +3344,7 @@ function SettingsHome({
             />
             <p>{t('允许隐私发送、存入、提取和 NFT 操作。')}</p>
             <p className="micro text-muted">
-              {t('暂不支持兑换、Ethereum 提取和原生 ETH 存入。')}
+              {t('暂不支持兑换和原生 ETH 存入。')}
             </p>
           </div>
         </SettingsSection>
@@ -3416,9 +3451,7 @@ function SettingsHome({
           <div className="panel network-list">
             {Object.values(NETWORKS).map((network) => (
               <div key={network.chainId}>
-                <span
-                  className={`status-dot ${network.chainId === 143 ? 'amber' : ''}`}
-                />
+                <NetworkIcon chainId={network.chainId} />
                 <span>
                   <strong>
                     {network.name}
@@ -3573,7 +3606,7 @@ function App() {
   };
   useEffect(() => {
     const refresh = () => {
-      const revision = stateRevision.current;
+      const revision = ++stateRevision.current;
       return callWallet<WalletState>('GET_STATE')
         .then((next) => {
           if (revision !== stateRevision.current) return;
@@ -3588,7 +3621,28 @@ function App() {
     };
     void refresh();
     const timer = window.setInterval(refresh, 5000);
-    return () => clearInterval(timer);
+    const changed = (
+      changes: Record<string, chrome.storage.StorageChange>,
+      area: string,
+    ) => {
+      if (
+        (area === 'local' &&
+          [
+            'activeWalletAccountId',
+            'walletAccounts',
+            'selectedChainId',
+            'privacyAccounts',
+          ].some((key) => changes[key])) ||
+        (area === 'session' && changes.walletUnlockSession)
+      )
+        void refresh();
+    };
+    chrome.storage.onChanged.addListener(changed);
+    return () => {
+      clearInterval(timer);
+      stateRevision.current++;
+      chrome.storage.onChanged.removeListener(changed);
+    };
   }, []);
   if (error && !state)
     return (

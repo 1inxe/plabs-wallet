@@ -61,6 +61,8 @@ export async function signNftTransaction(
         : 'NFT Gas 估算不可用，请稍后恢复原 mint',
     );
   const maxGas = gasLimit * maxFeePerGas;
+  if (maxGas > 10n ** 18n)
+    throw new Error('NFT 网络手续费超过单笔上限，请稍后重新估算');
   if ((await ports.provider.getBalance(ports.account)) < maxGas)
     throw new Error(
       transfer
@@ -93,6 +95,7 @@ export async function signNftTransaction(
       : { 铸造价格: '0（免费 mint）' }),
     Gas费用上限: `${formatEther(maxGas)} ETH`,
     付款账户: ports.account,
+    '交易序号 (Nonce)': String(nonce),
     收款: transferReview
       ? '上方指定的隐私地址'
       : '当前已解锁隐私钱包，私有 Note 只保存在扩展内',
@@ -101,6 +104,26 @@ export async function signNftTransaction(
       : '签署并广播此 NFT 铸造交易；不是普通转账或 ERC20 授权',
   });
   await ports.guard();
+  if (transfer) inspectNftTransfer(transaction);
+  else inspectMintTransaction(transaction, 30_000);
+  const [currentNonce, currentBalance, currentGas] = await Promise.all([
+    ports.provider.getTransactionCount(ports.account, 'pending'),
+    ports.provider.getBalance(ports.account, 'pending'),
+    ports.provider.estimateGas({
+      ...request,
+      ...pricing,
+      nonce,
+      gasLimit,
+      chainId: 1,
+    }),
+  ]);
+  await ports.guard();
+  if (currentNonce !== nonce)
+    throw new Error('账户 nonce 已变化，请重新确认 NFT 交易');
+  if (currentBalance < maxGas)
+    throw new Error('ETH 余额已变化，不足以支付确认的 Gas，请重新确认');
+  if (currentGas > gasLimit)
+    throw new Error('Gas 用量已超过确认上限，请重新确认 NFT 交易');
   if (transfer) inspectNftTransfer(transaction);
   else inspectMintTransaction(transaction, 30_000);
   // No provider-controlled population after approval; all fee/nonce bounds are fixed.

@@ -68,7 +68,9 @@ export function PageHeader({
         <Brand />
       )}
       <div className="page-heading">
-        <strong>{t(title)}</strong>
+        <strong role="heading" aria-level={1}>
+          {t(title)}
+        </strong>
         {subtitle && <small>{t(subtitle)}</small>}
       </div>
       {right ?? <span className="page-header-spacer" />}
@@ -173,7 +175,9 @@ export function Segments({
           aria-selected={value === option.value}
           key={option.value}
           className={value === option.value ? 'selected' : ''}
-          onClick={() => onChange(option.value)}
+          onClick={() => {
+            if (option.value !== value) onChange(option.value);
+          }}
         >
           {t(option.label)}
         </button>

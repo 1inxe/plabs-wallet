@@ -126,6 +126,7 @@ export const Textarea = ({
   />
 );
 export interface SelectOption {
+  icon?: ReactNode;
   value: string;
   label: string;
   description?: string;
@@ -155,9 +156,14 @@ export function Select({
         )}
         onClick={() => setOpen(true)}
       >
-        <span>
-          {options.find((option) => option.value === value)?.label ??
-            t('请选择')}
+        <span className="select-option-label">
+          {options.find((option) => option.value === value)?.icon}
+          <span>
+            {t(
+              options.find((option) => option.value === value)?.label ??
+                '请选择',
+            )}
+          </span>
         </span>
         <ChevronDown size={15} />
       </button>
@@ -175,13 +181,16 @@ export function Select({
               aria-pressed={value === option.value}
               className="selection-option"
               onClick={() => {
-                onValueChange(option.value);
+                if (option.value !== value) onValueChange(option.value);
                 setOpen(false);
               }}
             >
-              <span>
-                <strong>{t(option.label)}</strong>
-                {option.description && <small>{t(option.description)}</small>}
+              <span className="select-option-label">
+                {option.icon}
+                <span>
+                  <strong>{t(option.label)}</strong>
+                  {option.description && <small>{t(option.description)}</small>}
+                </span>
               </span>
               {value === option.value && (
                 <Check size={18} className="text-mint" />

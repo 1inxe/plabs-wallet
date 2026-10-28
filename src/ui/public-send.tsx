@@ -1,3 +1,4 @@
+import { useDeadline } from './use-deadline';
 import { t } from '../i18n';
 import { useEffect, useRef, useState } from 'react';
 import { parseUnits } from 'ethers';
@@ -33,6 +34,8 @@ export function PublicSend({
   const [checked, setChecked] = useState(false);
   const [error, setError] = useState('');
   const [revision, setRevision] = useState(0);
+  const inFlight = useRef(false);
+  const deadline = useDeadline(review?.expiresAt);
   const alive = useRef(true);
   const completed = useRef(onCompleted);
   completed.current = onCompleted;
@@ -100,7 +103,8 @@ export function PublicSend({
     }
   }
   const prepare = async () => {
-    if (busy || !checked || !amount || amountError) return;
+    if (busy || inFlight.current || !checked || !amount || amountError) return;
+    inFlight.current = true;
     setBusy(true);
     setError('');
     try {
@@ -117,11 +121,17 @@ export function PublicSend({
     } catch (cause) {
       if (alive.current) setError(walletErrorMessage(cause));
     } finally {
+      inFlight.current = false;
       if (alive.current) setBusy(false);
     }
   };
   const submit = async () => {
-    if (busy || !review) return;
+    if (busy || inFlight.current || !review) return;
+    if (Date.now() >= review.expiresAt) {
+      setError(t('预览已过期，请重新估算手续费'));
+      return;
+    }
+    inFlight.current = true;
     setBusy(true);
     setError('');
     try {
@@ -143,6 +153,7 @@ export function PublicSend({
         setError(walletErrorMessage(cause));
       }
     } finally {
+      inFlight.current = false;
       if (alive.current) setBusy(false);
     }
   };
@@ -213,7 +224,11 @@ export function PublicSend({
               {row(t('交易哈希'), result.txHash)}
             </section>
             {result.message && (
-              <p className="micro text-muted">{t(result.message)}</p>
+              <p
+                className={`micro ${result.state === 'confirmed' ? 'text-amber' : 'text-muted'}`}
+              >
+                {t(result.message)}
+              </p>
             )}
             <a
               className="explorer-link"
@@ -249,11 +264,22 @@ export function PublicSend({
               )}
             </section>
             <p className="micro text-muted">
-              {t('预览 2 分钟有效，手续费以链上执行为准。')}
+              {deadline.expired
+                ? t('预览已过期，请重新估算手续费')
+                : t('报价有效期 {0}', [deadline.text])}
             </p>
-            <Button variant="primary" disabled={busy} onClick={submit}>
+            <Button
+              variant="primary"
+              disabled={busy || deadline.expired}
+              onClick={submit}
+            >
               {busy ? t('正在提交\u2026') : t('确认并发送')}
             </Button>
+            {deadline.expired && (
+              <Button disabled={busy} onClick={prepare}>
+                {t('重新估算手续费')}
+              </Button>
+            )}
           </>
         ) : (
           <>

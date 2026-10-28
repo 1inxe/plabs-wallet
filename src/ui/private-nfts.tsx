@@ -1,3 +1,5 @@
+import { ApprovalDetails } from './approval-details';
+import { useDeadline } from './use-deadline';
 import { t } from '../i18n';
 import { ExternalLink, RefreshCw, Send } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
@@ -283,6 +285,8 @@ function NftSend({
   const [busy, setBusy] = useState(false),
     [error, setError] = useState('');
   const alive = useRef(true);
+  const refreshInFlight = useRef(false);
+  const inFlight = useRef(false);
   useEffect(() => {
     alive.current = true;
     return () => {
@@ -290,7 +294,8 @@ function NftSend({
     };
   }, []);
   const refresh = async () => {
-    if (!transfer?.id) return;
+    if (!transfer?.id || refreshInFlight.current) return;
+    refreshInFlight.current = true;
     try {
       const result = await callWallet<TransferStatus>(
         'GET_PRIVATE_NFT_TRANSFER',
@@ -302,6 +307,8 @@ function NftSend({
       }
     } catch (cause) {
       if (alive.current) setError(walletErrorMessage(cause));
+    } finally {
+      refreshInFlight.current = false;
     }
   };
   useEffect(() => {
@@ -311,7 +318,7 @@ function NftSend({
     return () => window.clearInterval(timer);
   }, [transfer?.id, transfer?.state]);
   const send = async () => {
-    if (busy) return;
+    if (busy || inFlight.current) return;
     setError('');
     try {
       parsePrivacyAddress(recipient);
@@ -319,6 +326,7 @@ function NftSend({
       setError(walletErrorMessage(cause));
       return;
     }
+    inFlight.current = true;
     setBusy(true);
     try {
       const result = await callWallet<TransferStatus>('SEND_PRIVATE_NFT', {
@@ -332,6 +340,7 @@ function NftSend({
     } catch (cause) {
       if (alive.current) setError(walletErrorMessage(cause));
     } finally {
+      inFlight.current = false;
       if (alive.current) setBusy(false);
     }
   };
@@ -415,8 +424,19 @@ export function NftTransferApproval({
 }) {
   const [busy, setBusy] = useState(false),
     [error, setError] = useState('');
+  const inFlight = useRef(false);
+  const deadline = useDeadline(
+    task.approval ? task.approval.createdAt + 600_000 : undefined,
+  );
   const decide = async (approved: boolean) => {
-    if (!task.approval || busy) return;
+    if (
+      !task.approval ||
+      busy ||
+      inFlight.current ||
+      (approved && Date.now() >= task.approval.createdAt + 600_000)
+    )
+      return;
+    inFlight.current = true;
     setBusy(true);
     setError('');
     try {
@@ -425,6 +445,7 @@ export function NftTransferApproval({
     } catch (cause) {
       setError(walletErrorMessage(cause));
     } finally {
+      inFlight.current = false;
       setBusy(false);
     }
   };
@@ -438,21 +459,21 @@ export function NftTransferApproval({
     >
       {task.approval ? (
         <>
-          <div className="panel approval-fields">
-            {Object.entries(task.approval.details).map(([label, value]) => (
-              <div className="approval-field" key={label}>
-                <small>{t(label)}</small>
-                <p>{label === '消息' ? value : t(value)}</p>
-              </div>
-            ))}
-          </div>
+          <ApprovalDetails details={task.approval.details} />
+          <p
+            className={`approval-deadline micro ${deadline.expired ? 'text-danger' : 'text-muted'}`}
+          >
+            {deadline.expired
+              ? t('请求已过期，请重新发起')
+              : t('确认有效期 {0}', [deadline.text])}
+          </p>
           <div className="approval-actions">
             <Button disabled={busy} onClick={() => void decide(false)}>
               {t(' 取消发送 ')}
             </Button>
             <Button
               variant="primary"
-              disabled={busy}
+              disabled={busy || deadline.expired}
               onClick={() => void decide(true)}
             >
               {t(' 确认发送 ')}
