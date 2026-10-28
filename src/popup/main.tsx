@@ -1,4 +1,4 @@
-import { AssetSyncProgressBar } from '../ui/asset-sync-progress';
+import { AssetSyncStatus } from '../ui/asset-sync-progress';
 import type { AssetSyncProgress } from '../privacy/sync-progress';
 import { NetworkIcon } from '../ui/network-icon';
 import { officialAssets } from '../privacy/official-assets';
@@ -2785,8 +2785,16 @@ function PrivacyHome({
     }
     if (action) openAction(action);
   };
+  const syncControls = {
+    value: syncStatus,
+    busy,
+    disabled: !privacy?.unlocked || !network.plabs,
+    error: Boolean(error),
+    complete,
+    onSync: () => void sync(),
+  };
   const health = (
-    <div className="wallet-health">
+    <AssetSyncStatus {...syncControls}>
       <button
         className="privacy-access"
         aria-label={privacy?.unlocked ? t('锁定隐私账户') : t('解锁隐私账户')}
@@ -2796,24 +2804,7 @@ function PrivacyHome({
         <ShieldCheck size={13} />
         <span>{privacy?.unlocked ? t('隐私已解锁') : t('解锁隐私账户')}</span>
       </button>
-      <button
-        className={`sync-access ${error ? 'has-issue' : ''}`}
-        aria-label={t('同步隐私资产')}
-        disabled={busy || !privacy?.unlocked || !network.plabs}
-        onClick={() => void sync()}
-      >
-        <RefreshCw size={13} />
-        <span>
-          {busy
-            ? t('同步中')
-            : error
-              ? t('同步未完成')
-              : complete
-                ? t('已同步')
-                : t('同步')}
-        </span>
-      </button>
-    </div>
+    </AssetSyncStatus>
   );
   return (
     <>
@@ -2922,7 +2913,6 @@ function PrivacyHome({
             </button>
           </div>
           {health}
-          {busy && <AssetSyncProgressBar value={syncStatus} />}
           {error && (
             <SyncNotice
               error={t(error)}
@@ -2964,17 +2954,9 @@ function PrivacyHome({
         </>
       ) : (
         <>
-          <div className="screen-title">
+          <AssetSyncStatus {...syncControls} variant="collectibles">
             <h1>{t('藏品')}</h1>
-            <IconButton
-              label={t('同步隐私资产')}
-              disabled={busy || !privacy?.unlocked || !network.plabs}
-              onClick={() => void sync()}
-            >
-              <RefreshCw size={18} className={busy ? 'sync-active' : ''} />
-            </IconButton>
-          </div>
-          {busy && <AssetSyncProgressBar value={syncStatus} />}
+          </AssetSyncStatus>
           {!privacy?.unlocked ? (
             <section className="privacy-onboarding">
               <Lock size={23} />

@@ -49,7 +49,11 @@ try {
     (await context.waitForEvent('serviceworker'));
   cdp = await context.browser().newBrowserCDPSession();
   const open = async () => {
-    await worker.evaluate(() => chrome.action.openPopup());
+    await worker.evaluate(async () => {
+      const [window] = await chrome.windows.getAll({ windowTypes: ['normal'] });
+      if (window?.id === undefined) throw Error('Popup fixture has no browser window');
+      await chrome.action.openPopup({ windowId: window.id });
+    });
     let target;
     for (let attempt = 0; attempt < 50; attempt++) {
       const targets = await cdp.send('Target.getTargets');

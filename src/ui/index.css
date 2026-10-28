@@ -11,12 +11,12 @@
   button, input, textarea { font: inherit; }
   button { cursor: pointer; }
   button:disabled { cursor: not-allowed; }
-  button:focus-visible, a:focus-visible { outline: 2px solid #4edea3; outline-offset: 3px; }
+  button:focus-visible, a:focus-visible { outline: 2px solid #14bb87; outline-offset: 3px; }
   small { font-size: 10px; line-height: 1.5; color: #9dabaa; }
   h1 { font-size: 22px; line-height: 28px; letter-spacing: -.02em; font-weight: 600; }
   h2 { display: flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 600; }
-  input[type='checkbox'] { accent-color: #4edea3; width: 18px; height: 18px; flex-shrink: 0; }
-  ::selection { background: #4edea333; color: #6ffbbe; }
+  input[type='checkbox'] { accent-color: #14bb87; width: 18px; height: 18px; flex-shrink: 0; }
+  ::selection { background: #14bb8733; color: #6ffbbe; }
   ::-webkit-scrollbar { width: 4px; }
   ::-webkit-scrollbar-thumb { background: #313b36; border-radius: 5px; }
 }
@@ -41,8 +41,8 @@
   .account-header button[aria-label='设置'], .account-header button[aria-label='锁定钱包'] { width: 30px; height: 32px; }
   .page-heading { flex: 1; text-align: center; }
   .page-heading strong { font-size: 16px; font-weight: 600; display: block; }
-  .page-heading small { display: block; color: #4edea3; font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: .04em; }
-  .profile-mark, .number-dot { display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; background: linear-gradient(45deg,#4edea3,#00f1fd); color: #003824; flex-shrink: 0; }
+  .page-heading small { display: block; color: #14bb87; font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: .04em; }
+  .profile-mark, .number-dot { display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; background: linear-gradient(45deg,#14bb87,#00f1fd); color: #003824; flex-shrink: 0; }
   .profile-mark { width: 32px; height: 32px; margin: 4px; }
   .number-dot { width: 24px; height: 24px; font-weight: 700; font-size: 11px; }
   .account-pill { display: flex; gap: 8px; align-items: center; border-radius: 24px; border: 1px solid #3c4a424d; background: #1c2025; padding: 5px 10px; text-align: left; max-width: 174px; }
@@ -52,7 +52,7 @@
   .network-pill { display: flex; align-items: center; padding-left: 10px; background: #181c21; border: 1px solid #3c4a424d; border-radius: 24px; }
   .network-pill button { border: 0; background: transparent; height: 30px; padding: 0 8px 0 5px; gap: 4px; font-size: 10px; }
   .network-pill button svg { width: 11px; }
-  .status-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #4edea3; flex-shrink: 0; }
+  .status-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #14bb87; flex-shrink: 0; }
   .status-dot.amber { background: #ffb95f; box-shadow: 0 0 6px #ffb95f80; }
   .account-option { display: flex; align-items: center; gap: 12px; padding: 12px; background: #1c2025; border-radius: 8px; width: 100%; margin-top: 8px; text-align: left; }
   .account-option>span:nth-child(2) { flex: 1; }
@@ -60,17 +60,17 @@
   .address-row { display: flex; align-items: center; gap: 8px; min-height: 38px; }
   .address-row + .address-row { margin-top: 10px; padding-top: 10px; border-top: 1px solid #3c4a4233; }
   .address-row small { display: block; font-size: 10px; }
-  .address-tag { padding: 3px 6px; border-radius: 4px; font: 10px 'JetBrains Mono',monospace; color: #4edea3; background: #4edea31a; border: 1px solid #4edea34d; }
+  .address-tag { padding: 3px 6px; border-radius: 4px; font: 10px 'JetBrains Mono',monospace; color: #14bb87; background: #14bb871a; border: 1px solid #14bb874d; }
   .address-tag.public { color: #ffb95f; background: #1c2025; border-color: #3c4a424d; }
   .address-actions { display: flex; align-items: center; margin-left: auto; flex-shrink: 0; }
   .address-actions button { width: 26px; height: 28px; }
   .copy-button { display: inline-flex; align-items: center; justify-content: center; gap: 5px; padding: 6px 9px; font-size: 11px; background: #262a30; color: #bbcabf; border-radius: 5px; }
-  .copy-button:hover { color: #4edea3; }
+  .copy-button:hover { color: #14bb87; }
   .copy-button.compact { padding: 5px; background: transparent; }
-  .tiny-badge { display: inline-flex; align-items: center; width: max-content; max-width: 100%; font-size: 9px; line-height: 15px; padding: 0 5px; border-radius: 4px; background: #4edea31a; color: #4edea3; white-space: nowrap; }
+  .tiny-badge { display: inline-flex; align-items: center; width: max-content; max-width: 100%; font-size: 9px; line-height: 15px; padding: 0 5px; border-radius: 4px; background: #14bb871a; color: #14bb87; white-space: nowrap; }
   .tiny-badge.public { color: #ffb95f; background: #ffb95f1a; }
   .tiny-badge.neutral { color: #bbcabf; background: #31353b; }
-  .net-worth { display: flex; align-items: center; flex-direction: column; gap: 10px; padding: 20px 10px 17px; background: radial-gradient(at 80% 10%,#4edea30b,transparent 65%),#181c21; border-radius: 12px; }
+  .net-worth { display: flex; align-items: center; flex-direction: column; gap: 10px; padding: 20px 10px 17px; background: radial-gradient(at 80% 10%,#14bb870b,transparent 65%),#181c21; border-radius: 12px; }
   .net-worth>span { color: #bbcabf; font-size: 12px; }
   .net-worth strong { font-size: 32px; letter-spacing: -.03em; }
   .net-worth strong small { font-size: 12px; font-weight: 400; }
@@ -83,44 +83,44 @@
   .route-card>span:nth-child(2) { flex: 1; }
   .route-card strong { font-size: 14px; font-weight: 500; display: block; }
   .route-card small { display: block; font-size: 11px; margin-top: 3px; }
-  .route-card i { font-size: 9px; color: #4edea3; background: #4edea31a; padding: 1px 4px; font-style: normal; }
-  .primary-route>svg { color: #4edea3; }
-  .route-icon { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 12px; background: #4edea31a; color: #4edea3; }
+  .route-card i { font-size: 9px; color: #14bb87; background: #14bb871a; padding: 1px 4px; font-style: normal; }
+  .primary-route>svg { color: #14bb87; }
+  .route-icon { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 12px; background: #14bb871a; color: #14bb87; }
   .route-icon.cyan { background: #00dce618; color: #6ff6ff; }
-  .vault-card { position: relative; padding: 16px; background: radial-gradient(at 85% 0%,#4edea316,transparent 60%),radial-gradient(at 0% 100%,#00dce60c,transparent 65%),#181c21; box-shadow: 0 8px 24px #0002; }
+  .vault-card { position: relative; padding: 16px; background: radial-gradient(at 85% 0%,#14bb8716,transparent 60%),radial-gradient(at 0% 100%,#00dce60c,transparent 65%),#181c21; box-shadow: 0 8px 24px #0002; }
   .vault-card h2 { font-size: 14px; }
   .key-button { display: flex; align-items: center; gap: 3px; font-size: 10px; padding: 5px; color: #bbcabf; background: #1c2025; border-radius: 5px; }
   .balance-overview { margin-top: 17px; }
   .balance-overview>.micro { font-size: 9px; color: #bbcabf; }
   .balance-number { font-size: 32px; font-weight: 700; letter-spacing: -.025em; line-height: 40px; }
-  .balance-number small { font-size: 12px; color: #4edea3; font-weight: 600; }
+  .balance-number small { font-size: 12px; color: #14bb87; font-weight: 600; }
   .valuation-note { font-size: 9px; }
   .action-grid { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 8px; margin-top: 16px; }
   .action-grid>button { display: flex; flex-direction: column; justify-content: center; align-items: center; min-width: 0; gap: 6px; padding: 12px 3px; border-radius: 12px; border: 1px solid #3c4a424d; background: #1c2025; }
   .action-grid>button>span:first-child { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 50%; background: #31353b; }
   .action-grid>button strong { font-family: 'JetBrains Mono',monospace; font-size: 10px; font-weight: 500; }
-  .action-grid>button.receive-action { border-color: #4edea340; }
-  .action-grid>button.receive-action>span { background: #4edea326; }
+  .action-grid>button.receive-action { border-color: #14bb8740; }
+  .action-grid>button.receive-action>span { background: #14bb8726; }
   .action-grid>button:disabled { opacity: .35; }
-  .shield-entry { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; padding-top: 12px; color: #4edea3; font-size: 11px; }
+  .shield-entry { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; padding-top: 12px; color: #14bb87; font-size: 11px; }
   .locked-actions>button { font-size: 10px; gap: 10px; }
   .private-assets h2 { font-size: 13px; }
   .asset-row { display: flex; align-items: center; gap: 10px; padding: 11px; margin-top: 10px; border: 1px solid #3c4a4233; background: #1c2025; border-radius: 8px; }
   .asset-symbol { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 50%; font-size: 12px; font-weight: 700; flex-shrink: 0; background: #31353b; }
   .asset-symbol.public { color: #ffb95f; }
-  .asset-symbol.private { color: #4edea3; background: #4edea326; border: 1px solid #4edea34d; }
+  .asset-symbol.private { color: #14bb87; background: #14bb8726; border: 1px solid #14bb874d; }
   .asset-symbol.cyan { color: #6ff6ff; background: #00dce61c; border-color: #00dce64d; }
   .asset-meta { flex: 1; min-width: 0; }
   .asset-meta strong { font-size: 14px; }
   .asset-meta small { display: block; font-size: 9px; margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .asset-amount { max-width: 115px; font-size: 12px; overflow: hidden; text-overflow: ellipsis; }
   .add-asset { border: 1px dashed #3c4a4270; border-radius: 8px; width: 100%; display: flex; gap: 6px; align-items: center; justify-content: center; padding: 8px; margin-top: 10px; color: #bbcabf; font-size: 10px; }
-  .sync-card { background: #0a0e13; border: 1px solid #4edea333; padding: 10px 12px; border-radius: 12px; }
+  .sync-card { background: #0a0e13; border: 1px solid #14bb8733; padding: 10px 12px; border-radius: 12px; }
   .sync-card .row-between button { width: 24px; height: 24px; }
   .sync-details { display: flex; gap: 5px; justify-content: space-between; border-top: 1px solid #3c4a4233; padding-top: 9px; margin-top: 8px; color: #bbcabf; font-size: 9px; }
-  .sync-details>span:last-child { color: #4edea3; }
+  .sync-details>span:last-child { color: #14bb87; }
   .sync-progress { height: 4px; border-radius: 4px; background: #262a30; overflow: hidden; margin-top: 8px; }
-  .sync-progress span { height: 100%; display: block; background: #4edea3; transition: width .4s; }
+  .sync-progress span { height: 100%; display: block; background: #14bb87; transition: width .4s; }
   .public-assets h2 { font-size: 12px; }
   .public-assets .row-between button { width: 24px; height: 28px; }
   .public-hint { display: flex; gap: 4px; justify-content: center; margin-top: 14px; color: #86948a; font-size: 9px; }
@@ -132,35 +132,35 @@
   .intro { text-align: center; padding: 20px 2px 8px; display: flex; flex-direction: column; align-items: center; gap: 14px; }
   .intro p { font-size: 13px; line-height: 21px; color: #bbcabf; }
   .compact-intro { padding: 12px 0; gap: 8px; }
-  .hero-symbol { display: grid; place-items: center; width: 64px; height: 64px; border-radius: 15px; border: 1px solid #4edea32a; background: #4edea315; color: #4edea3; box-shadow: 0 0 25px #4edea30d; }
+  .hero-symbol { display: grid; place-items: center; width: 64px; height: 64px; border-radius: 15px; border: 1px solid #14bb872a; background: #14bb8715; color: #14bb87; box-shadow: 0 0 25px #14bb870d; }
   .hero-symbol.small { width: 34px; height: 34px; border-radius: 8px; }
   .brand-mark { display: grid; place-items: center; width: 48px; height: 48px; border-radius: 10px; background: #1c2025; }
   .brand-mark .brand-logo { width: 40px; height: 40px; }
   .brand-orbit { width: 112px; height: 112px; position: relative; display: grid; place-items: center; filter: drop-shadow(0 0 24px #10b9812a); margin: 0 auto; }
-  .brand-orbit .brand-logo { width: 80px; height: 80px; padding: 10px; border-radius: 18px; background: #181c21; border: 1px solid #4edea326; }
+  .brand-orbit .brand-logo { width: 80px; height: 80px; padding: 10px; border-radius: 18px; background: #181c21; border: 1px solid #14bb8726; }
   .orbit-ring { position: absolute; inset: 0; width: 112px; height: 112px; }
-  .brand-lock { position: absolute; right: -3px; bottom: -3px; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; color: #4edea3; background: #262a30; }
+  .brand-lock { position: absolute; right: -3px; bottom: -3px; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; color: #14bb87; background: #262a30; }
   .password-field { position: relative; }
   .password-field input { height: 48px; padding-right: 44px; background: #0a0e13; border-color: transparent; border-radius: 10px; font-size: 13px; }
   .password-field button { position: absolute; right: 5px; top: 4px; width: 36px; }
   .unlock-page { padding: 8px 16px 24px; }
   .version-pill { display: flex; gap: 3px; align-items: center; width: max-content; padding: 4px 8px; border-radius: 20px; background: #181c21; font: 9px 'JetBrains Mono',monospace; }
-  .version-pill svg { color: #4edea3; }
+  .version-pill svg { color: #14bb87; }
   .unlock-hero { padding-top: 38px; text-align: center; }
   .unlock-hero h1 { margin-top: 26px; font-size: 22px; }
-  .unlock-badge { display: inline-flex; align-items: center; justify-content: center; gap: 10px; background: #4edea319; color: #4edea3; padding: 4px 12px; border-radius: 20px; font: 10px 'JetBrains Mono',monospace; margin-top: 8px; }
+  .unlock-badge { display: inline-flex; align-items: center; justify-content: center; gap: 10px; background: #14bb8719; color: #14bb87; padding: 4px 12px; border-radius: 20px; font: 10px 'JetBrains Mono',monospace; margin-top: 8px; }
   .unlock-form { margin-top: 28px; display: flex; flex-direction: column; gap: 8px; }
   .unlock-form .primary-cta { margin-top: 30px; }
   .unlock-form .micro { font-size: 9px; padding: 0 4px; }
   .recovery-link { display: flex; align-items: center; justify-content: center; gap: 5px; color: #bbcabf; font-size: 12px; width: 100%; margin-top: 20px; }
   .segments { display: flex; background: #0a0e13; border-radius: 8px; padding: 4px; gap: 4px; }
   .segments button { flex: 1; min-width: 0; padding: 9px 4px; font-size: 12px; color: #bbcabf; border-radius: 6px; }
-  .segments .selected { background: #1c2025; color: #4edea3; box-shadow: 0 2px 4px #0004; }
+  .segments .selected { background: #1c2025; color: #14bb87; box-shadow: 0 2px 4px #0004; }
   .step-card { display: flex; align-items: center; gap: 10px; padding: 12px; border-radius: 12px; background: #181c21; }
   .step-card>div { flex: 1; }
   .step-card strong { font-size: 12px; }
-  .step-card small { display: block; color: #4edea3; }
-  .step-track { width: 44px; height: 4px; background: linear-gradient(to right,#4edea3 50%,#31353b 50%); border-radius: 5px; }
+  .step-card small { display: block; color: #14bb87; }
+  .step-track { width: 44px; height: 4px; background: linear-gradient(to right,#14bb87 50%,#31353b 50%); border-radius: 5px; }
   .check-row { display: flex; align-items: flex-start; gap: 10px; font-size: 12px; line-height: 19px; color: #bbcabf; padding: 10px; background: #181c21; border-radius: 8px; }
   .phrase-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 8px; }
   .phrase-grid>div { display: flex; gap: 7px; padding: 12px 8px; border: 1px solid #3c4a4255; background: #1c2025; border-radius: 6px; font-size: 11px; }
@@ -176,31 +176,31 @@
   .transfer-destination { display: flex; align-items: center; gap: 10px; border-top: 1px solid #3c4a4233; margin-top: 12px; padding-top: 12px; font-size: 11px; color: #bbcabf; }
   .token-options { display: flex; gap: 8px; flex-wrap: wrap; }
   .token-options button { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 140px; text-align: left; padding: 12px 9px; background: #0a0e13; border: 1px solid transparent; border-radius: 12px; }
-  .token-options button.selected { background: #1c2025; border-color: #4edea34d; }
+  .token-options button.selected { background: #1c2025; border-color: #14bb874d; }
   .token-options strong, .token-options small { display: block; }
   .token-options small { font: 9px 'JetBrains Mono',monospace; line-height: 15px; }
   .recipient-field { display: flex; align-items: center; background: #0a0e13; border-radius: 8px; border: 1px solid #3c4a42; }
   .recipient-field input { border: 0; min-width: 0; font-size: 11px; background: transparent; }
   .recipient-field button { font-size: 11px; flex-shrink: 0; padding: 6px 10px; margin-right: 6px; border-radius: 5px; background: #262a30; }
-  .validation-good { display: flex; gap: 4px; align-items: center; color: #4edea3; font-size: 10px; }
+  .validation-good { display: flex; gap: 4px; align-items: center; color: #14bb87; font-size: 10px; }
   .amount-panel { padding: 14px 12px; }
   .amount-input { display: flex; align-items: center; gap: 10px; padding: 14px 0; }
   .amount-input input { width: 100%; min-width: 0; background: transparent; border: 0; font: 600 32px 'JetBrains Mono',monospace; outline: none; }
-  .amount-input strong { color: #4edea3; font-size: 16px; }
+  .amount-input strong { color: #14bb87; font-size: 16px; }
   .percentage-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 8px; }
   .percentage-row button { padding: 6px; border-radius: 8px; background: #1c2025; font: 10px 'JetBrains Mono',monospace; }
-  .percentage-row button:last-child { color: #4edea3; background: #4edea326; }
+  .percentage-row button:last-child { color: #14bb87; background: #14bb8726; }
   .amount-hint { margin-top: 9px; display: flex; gap: 6px; align-items: center; font-size: 10px; color: #bbcabf; padding: 8px; background: #101419; border-radius: 8px; }
   .amount-hint svg { color: #ffb95f; flex-shrink: 0; }
-  .explorer-link { display: flex; justify-content: center; align-items: center; gap: 5px; color: #4edea3; font-size: 12px; }
+  .explorer-link { display: flex; justify-content: center; align-items: center; gap: 5px; color: #14bb87; font-size: 12px; }
   .settings-body { gap: 20px; }
-  .section-title { display: flex; align-items: center; gap: 5px; margin-bottom: 8px; font-size: 11px; color: #4edea3; }
+  .section-title { display: flex; align-items: center; gap: 5px; margin-bottom: 8px; font-size: 11px; color: #14bb87; }
   .section-title.cyan { color: #00dce6; }
   .section-title.amber { color: #ffb95f; }
   .section-title.neutral { color: #bbcabf; }
   .setting-label { display: flex; align-items: center; gap: 5px; color: #bbcabf; font-size: 11px; margin-bottom: 9px; }
   .settings-body .segments button { font: 10px 'JetBrains Mono',monospace; padding: 7px 0; }
-  .settings-body .segments .selected { background: #4edea3; color: #003824; }
+  .settings-body .segments .selected { background: #14bb87; color: #003824; }
   .experimental-panel { border-color: #ffb95f40; background: linear-gradient(130deg,#181c21,#ffb95f12); }
   .experimental-panel p { font-size: 11px; line-height: 18px; color: #bbcabf; margin: 12px 0; }
   .settings-body .row-between strong { font-size: 12px; font-weight: 500; }
@@ -238,7 +238,7 @@ body { width: min(100vw, 420px); margin-inline: auto; }
 .page-heading h1 { font-size: 16px; line-height: 24px; outline: none; }
 .selection-list { display: grid; gap: 6px; }
 .selection-option { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 48px; padding: 9px 12px; border: 1px solid #2b3735; border-radius: 9px; background: #181f24; text-align: left; }
-.selection-option[aria-pressed='true'] { border-color: #4edea377; background: #153229; }
+.selection-option[aria-pressed='true'] { border-color: #14bb8777; background: #153229; }
 .selection-option strong, .selection-option small { display: block; }
 .selection-option strong { font-size: 12px; line-height: 18px; }
 .selection-option small { margin-top: 1px; font-size: 10px; line-height: 14px; }
@@ -247,15 +247,15 @@ body { width: min(100vw, 420px); margin-inline: auto; }
 .account-header { height: 66px; }
 .account-option { padding: 16px 12px; border: 1px solid #2b3735; border-radius: 12px; }
 .account-option strong { overflow-wrap: anywhere; }
-.vault-card { padding: 18px 16px; border-color: #4edea338; background: radial-gradient(ellipse at 100% 0%, #23584355, transparent 70%), #171e22; }
+.vault-card { padding: 18px 16px; border-color: #14bb8738; background: radial-gradient(ellipse at 100% 0%, #23584355, transparent 70%), #171e22; }
 .balance-overview { margin-top: 20px; }
 .eyebrow { font: 10px 'JetBrains Mono', monospace; color: #9ebdb0; letter-spacing: .09em; }
 .balance-number { font-size: 44px; line-height: 56px; font-weight: 500; }
 .balance-number small { font-size: 13px; color: #c2d3ca; font-weight: 400; }
 .action-grid>button { transition: background .15s, border-color .15s; }
-.action-grid>button:hover:not(:disabled) { background: #26362f; border-color: #4edea377; }
+.action-grid>button:hover:not(:disabled) { background: #26362f; border-color: #14bb8777; }
 .action-grid>button:disabled { opacity: .5; }
-.shield-entry { padding: 12px; margin-top: 12px; background: #4edea30c; border: 1px solid #4edea32c; border-radius: 10px; }
+.shield-entry { padding: 12px; margin-top: 12px; background: #14bb870c; border: 1px solid #14bb872c; border-radius: 10px; }
 .shield-entry:disabled { opacity: .4; }
 .text-toggle { color: #a6c6b6; font-size: 11px; padding: 8px 4px; }
 .asset-meta { min-width: 0; }
@@ -286,7 +286,7 @@ body { width: min(100vw, 420px); margin-inline: auto; }
 
 .wallet-account-list { display: grid; gap: 6px; }
 .account-list-item { padding: 7px 10px; border: 1px solid #293b33; border-radius: 12px; background: #181f23; }
-.account-list-item.is-active { border-color: #4edea35c; background: #192922; }
+.account-list-item.is-active { border-color: #14bb875c; background: #192922; }
 .account-list-item .account-option { margin: 0 0 2px; padding: 0; gap: 7px; border: 0; border-radius: 5px; background: transparent; min-height: 24px; }
 .account-list-item .number-dot { width: 20px; height: 20px; font-size: 10px; }
 .account-list-name { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 12px; font-weight: 600; }
@@ -298,7 +298,7 @@ body { width: min(100vw, 420px); margin-inline: auto; }
 .account-list-address .copy-button { width: 24px; height: 24px; padding: 4px; }
 .notes-section { display: grid; gap: 14px; }
 .note-counts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
-.note-counts>div { text-align: center; padding: 13px 5px; background: #19241f; border: 1px solid #4edea322; border-radius: 10px; }
+.note-counts>div { text-align: center; padding: 13px 5px; background: #19241f; border: 1px solid #14bb8722; border-radius: 10px; }
 .note-counts strong { display: block; font: 500 20px 'JetBrains Mono', monospace; }
 .note-counts small { display: block; margin-top: 4px; }
 .notes-filters { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 4px; padding: 4px; border-radius: 10px; background: #0b1115; }
@@ -306,7 +306,7 @@ body { width: min(100vw, 420px); margin-inline: auto; }
 .notes-filters button[aria-pressed='true'] { background: #203d31; color: #8ef0be; }
 .notes-list { display: grid; gap: 8px; }
 .note-item { border: 1px solid #2d3b34; border-radius: 12px; padding: 12px; display: grid; gap: 8px; background: #171e23; }
-.note-item.selected { border-color: #4edea37a; background: #1a2d24; }
+.note-item.selected { border-color: #14bb877a; background: #1a2d24; }
 .note-item-header { display: flex; align-items: center; gap: 8px; }
 .note-item-header>strong { flex: 1; min-width: 0; overflow-wrap: anywhere; font-size: 12px; }
 .note-item-header input { width: 16px; height: 16px; }
@@ -321,7 +321,7 @@ body { width: min(100vw, 420px); margin-inline: auto; }
 .notes-payment summary { cursor: pointer; font-size: 12px; color: #a9c5b5; padding: 10px 0; }
 .merge-size-options { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; }
 .merge-size-options button { padding: 10px 2px; border: 1px solid #2d3b34; border-radius: 8px; background: #171e23; font-size: 12px; }
-.merge-size-options button[aria-pressed='true'] { border-color: #4edea377; background: #203d31; color: #8ef0be; }
+.merge-size-options button[aria-pressed='true'] { border-color: #14bb8777; background: #203d31; color: #8ef0be; }
 .activity-section { display: grid; gap: 12px; }
 .activity-view-all { display: flex; align-items: center; gap: 4px; font-size: 11px; color: #86caa8; }
 .activity-list { display: grid; }
@@ -390,7 +390,7 @@ body { width: 100%; min-width: 0; max-width: 370px; min-height: 600px; margin: 0
 .connected-site-text>strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; line-height: 17px; font-weight: 500; color: #e0e2ea; }
 .connected-site-account { display: flex; align-items: center; gap: 6px; min-width: 0; font-size: 10px; line-height: 15px; color: #929ba8; }
 .connected-site-status { display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0; }
-.connected-site-status>i { width: 5px; height: 5px; border-radius: 50%; background: #4edea3; }
+.connected-site-status>i { width: 5px; height: 5px; border-radius: 50%; background: #14bb87; }
 .connected-site-divider { color: #525b68; }
 .connected-site-account>.mono { color: #a5adba; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 9px; }
 .connected-site-account svg { flex-shrink: 0; color: #6e7887; }
@@ -438,7 +438,7 @@ html:has(#root:not([hidden]) .connected-site-bar):not(:has(#root .flow-page)) .w
 .wallet-assets-heading > h2 { color: #e0e2ea; font-size: 14px; }
 .wallet-asset-tabs { display: flex; gap: 3px; padding: 3px; border: 1px solid #3c4a424d; border-radius: 10px; background: #181c21; }
 .wallet-asset-tabs > button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-width: 76px; height: 32px; padding: 0 12px; border-radius: 7px; color: #929fa7; font-size: 12px; }
-.wallet-asset-tabs > button[data-state='active'] { color: #4edea3; background: #4edea317; box-shadow: inset 0 0 0 1px #4edea326; }
+.wallet-asset-tabs > button[data-state='active'] { color: #14bb87; background: #14bb8717; box-shadow: inset 0 0 0 1px #14bb8726; }
 .wallet-asset-content { display: flex; flex-direction: column; gap: 12px; outline: none; }
 .wallet-asset-content[data-state='inactive'] { display: none; }
 .private-nft-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; margin-top: 16px; }
@@ -447,10 +447,10 @@ html:has(#root:not([hidden]) .connected-site-bar):not(:has(#root .flow-page)) .w
 .private-nft-art { position: relative; aspect-ratio: 1; background: #1d282b; }
 .private-nft-art > img, .nft-detail-art > img { display: block; width: 100%; height: 100%; object-fit: cover; }
 .nft-art-open { position: absolute; inset: 0; width: 100%; background: transparent; }
-.nft-art-open:hover { background: #4edea30a; }
+.nft-art-open:hover { background: #14bb870a; }
 .nft-art-placeholder { height: 100%; min-height: 120px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; color: #8a9c9c; background: radial-gradient(ellipse at 50% 30%,#254739,#172026 75%); }
 .nft-art-placeholder > span { font-size: 10px; }
-.nft-art-placeholder > button { position: relative; z-index: 2; display: inline-flex; align-items: center; gap: 4px; color: #4edea3; font-size: 10px; padding: 4px; }
+.nft-art-placeholder > button { position: relative; z-index: 2; display: inline-flex; align-items: center; gap: 4px; color: #14bb87; font-size: 10px; padding: 4px; }
 .private-nft-copy { display: flex; flex-direction: column; text-align: left; width: 100%; gap: 7px; padding: 11px; }
 .private-nft-copy > strong { font-size: 11px; line-height: 16px; overflow-wrap: anywhere; }
 .private-nft-copy > span { display: flex; justify-content: space-between; gap: 5px; align-items: center; width: 100%; color: #c4d5ce; font: 10px 'JetBrains Mono',monospace; }
@@ -493,7 +493,7 @@ html:has(#root:not([hidden]) .connected-site-bar):not(:has(#root .flow-page)) .w
 .private-nft-grid { margin-top: 0; }
 
 /* Clear hierarchy, quiet surfaces, and a single emerald accent. */
-:root { --wallet-canvas: #0d1418; --wallet-surface: #172126; --wallet-line: #a7c3b416; --wallet-accent: #65e5b4; }
+:root { --wallet-canvas: #0d1418; --wallet-surface: #172126; --wallet-line: #a7c3b416; --wallet-accent: #14bb87; }
 html, body, #root, .wallet-shell { background: var(--wallet-canvas); }
 .panel { border-color: var(--wallet-line); background: var(--wallet-surface); }
 .account-header { height: 68px; padding: 10px 16px; background: #0d1418ed; border-color: #c8ddcf0b; }

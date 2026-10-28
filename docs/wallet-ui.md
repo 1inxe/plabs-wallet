@@ -1,6 +1,8 @@
 # Wallet interface
 
-PLabs is primarily a privacy wallet. Default to private assets and their total USD estimate (displayed with the `$` prefix); public ERC-20 assets belong in a secondary tab. Keep private transfers, receiving, shielding and NFT ownership prominent. Use restrained mint accents, clear hierarchy and concise copy.
+PLabs is primarily a privacy wallet. Default to private assets and their total USD estimate (displayed with the `$` prefix); public ERC-20 assets belong in a secondary tab. Keep private transfers, receiving, shielding and NFT ownership prominent. Use `#14bb87` as the primary accent, charcoal surfaces with clear tonal separation, and concise copy. Buttons, selected navigation, focus states and progress bars share the same accent.
+
+Asset sync belongs inside its context: the privacy-status surface on the assets page and the title section on the collectibles page. While syncing, show the current token/NFT phase and percentage beside the sync icon, with one thin progress bar and scan details below. Avoid a separate duplicate “syncing” row; hide progress when the operation ends. Keep the lock and retry actions independent.
 
 Show both token quantity with its unit and the estimated USD value, plus 24-hour price changes. Aggregate portfolio changes using the current quantities at current and previous prices; this is a market-value comparison, not realized profit. Missing quotes default to $0.00 and 0.00%, with a compact indication of incomplete pricing. Use `$7.00`, `+$0.39` and `-$0.39` for fiat values; retain token symbols for quantities such as `7 sUSDC` or `0.0116 ETH`. Do not use a literal U suffix. Fiat amounts use two decimal places; changes rounding to zero have no negative sign. Locked or explicitly hidden balances remain masked.
 
