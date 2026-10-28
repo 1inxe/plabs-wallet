@@ -51,7 +51,7 @@ test('unified sync waits for NFT completion and returns only fungible balances',
   });
   await new Promise(setImmediate);
   assert.equal(done, false);
-  assert.deepEqual(steps, ['tokens', 'nfts']);
+  assert.deepEqual(steps, ['nfts']);
   finish();
   assert.deepEqual(await job, ['token-balance']);
 });
@@ -108,7 +108,11 @@ test('session changes stop NFT reads before another account is scanned', async (
     }),
     /session changed/,
   );
-  assert.equal(nfts, 0);
+  assert.equal(
+    nfts,
+    1,
+    'NFT discovery already started with the original guarded session',
+  );
 });
 test('chains without NFT pools synchronize fungible assets alone', async () => {
   const phases = [];
@@ -121,4 +125,43 @@ test('chains without NFT pools synchronize fungible assets alone', async () => {
     ['Monad asset'],
   );
   assert.deepEqual(phases, ['tokens']);
+});
+
+test('an unresolved fungible sync cannot delay NFT discovery or its saved result', async () => {
+  let releaseTokens,
+    releaseNfts,
+    nftsStarted = false,
+    tokensStarted = false;
+  const tokens = new Promise((resolve) => {
+      releaseTokens = resolve;
+    }),
+    nfts = new Promise((resolve) => {
+      releaseNfts = resolve;
+    });
+  let done = false;
+  const job = syncPrivacyAssets({
+    guard: async () => {},
+    phase: () => {},
+    tokens: async () => {
+      tokensStarted = true;
+      await tokens;
+      return ['balance'];
+    },
+    nfts: async () => {
+      nftsStarted = true;
+      await nfts;
+      return { syncComplete: true };
+    },
+  }).then((value) => {
+    done = true;
+    return value;
+  });
+  await new Promise(setImmediate);
+  assert.equal(tokensStarted, true);
+  assert.equal(nftsStarted, true);
+  releaseNfts();
+  await new Promise(setImmediate);
+  assert.equal(done, false, 'Completion still waits for both asset types');
+  releaseTokens();
+  assert.deepEqual(await job, ['balance']);
 });

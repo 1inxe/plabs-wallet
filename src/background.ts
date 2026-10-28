@@ -140,7 +140,7 @@ const changeAuthorization = <T>(work: () => Promise<T>): Promise<T> => {
 const activeSubmissions = new Set<string>();
 const invalidateOperations = () => { operationEpoch++; preparedOperations.clear(); publicTransfers.clear(); };
 const privacySyncJobs = new Map<ChainId, Promise<PrivacyPoolSnapshot[]>>();
-type AssetSyncState = { epoch: number; address: string; phase: 'tokens' | 'nfts' | 'complete' | 'error'; startedAt: number; error?: string; lastProgress?: AssetSyncProgress; job?: Promise<PrivacyPoolSnapshot[]> };
+type AssetSyncState = { epoch: number; address: string; phase: 'tokens' | 'nfts' | 'complete' | 'error'; nftsDone?:boolean; startedAt: number; error?: string; lastProgress?: AssetSyncProgress; job?: Promise<PrivacyPoolSnapshot[]> };
 const privacyAssetSync = new Map<ChainId, AssetSyncState>();
 
 interface WalletUnlockSession {
@@ -575,12 +575,13 @@ const getPrivacySyncProgress = async (chainId: ChainId): Promise<AssetSyncProgre
   if (state.phase === 'error') return { ...base, status: 'error', phase:'error', progress: state.lastProgress?.progress??0, message: '同步未完成', error: state.error };
   if (state.phase === 'nfts') {
     const nft=await callPrivacyEngine<NftSyncProgress|null>('PRIVACY_NFT_SYNC_PROGRESS',{account:state.address}).catch(()=>null);
-    const progress=Math.min(99,80+Math.floor((nft?.progress??0)*0.2));
+    const tokens=await getTokenSyncProgress(chainId);
+    const progress=Math.min(99,Math.floor(tokens.progress*0.8+(nft?.progress??0)*0.2));
     const result:AssetSyncProgress={...base,status:'syncing',phase:'nfts',progress,message:'正在同步 NFT',...(nft?{nft}:{} )};
     state.lastProgress=result;return result;
   }
   const tokens = await getTokenSyncProgress(chainId);
-  const result:AssetSyncProgress={ ...base, status: 'syncing', phase:'tokens', progress: chainId === 1 ? Math.min(79, Math.floor(tokens.progress * 0.8)) : Math.min(99, tokens.progress), message: tokens.message };
+  const result:AssetSyncProgress={ ...base, status: 'syncing', phase:'tokens', progress: chainId === 1 ? Math.min(99, Math.floor(tokens.progress * 0.8)+(state.nftsDone?20:0)) : Math.min(99, tokens.progress), message: tokens.message };
   state.lastProgress=result;return result;
 };
 
@@ -2797,7 +2798,8 @@ const dispatchRuntimeMessage = async (message: Record<string, unknown>, sender: 
     case 'SYNC_PRIVATE_NFT_ASSETS': {
       const wallet = requireUnlocked(); await requirePrivacyUnlocked();
       if (await selectedChainId() !== 1) throw new RpcError(4901, '隐私 NFT 目前部署在 Ethereum，请先切换网络');
-      return callPrivacyEngine(message.action === 'SYNC_PRIVATE_NFT_ASSETS' ? 'PRIVACY_NFT_SYNC' : 'PRIVACY_NFT_ASSETS', { account: wallet.address, includeTransfers: true });
+      return callPrivacyEngine(message.action === 'SYNC_PRIVATE_NFT_ASSETS' ? 'PRIVACY_NFT_SYNC' : 'PRIVACY_NFT_ASSETS', { account: wallet.address, includeTransfers: true, recentOnly: message.recentOnly === true,
+        ...(message.action === 'SYNC_PRIVATE_NFT_ASSETS' ? {internalSync:true,binding:{address:wallet.address,privacy:(await privacyAccountState()).privacyAddress,revision:operationEpoch}} : {}) });
     }
     case 'GET_PRIVACY_STATE':
       return privacyAccountState();
@@ -3069,10 +3071,20 @@ const dispatchRuntimeMessage = async (message: Record<string, unknown>, sender: 
                 return callPrivacyEngine<PrivacyPoolSnapshot>('PRIVACY_SYNC_POOL', { chainId, poolAddress: pool.address, rescan: message.rescan === true });
               });
             },
-            ...(chainId === 1 ? { nfts: () => callPrivacyEngine<{ syncComplete: boolean; error?: string }>('PRIVACY_NFT_SYNC', {
-              account: wallet.address, includeTransfers: true, internalSync: true, rescan: message.rescan === true,
-              binding: { address: wallet.address, privacy: privacy.privacyAddress, revision: epoch },
-            }) } : {}),
+            ...(chainId === 1 ? { nfts: async () => {
+              let first = true;
+              while (true) {
+                await guard();
+                const result = await callPrivacyEngine<{syncComplete:boolean;error?:string;catchingUp?:boolean}>('PRIVACY_NFT_SYNC', {
+                  account: wallet.address, includeTransfers: true, internalSync: true, rescan: first && message.rescan === true,
+                  binding: { address: wallet.address, privacy: privacy.privacyAddress, revision: epoch },
+                });
+                first = false; await guard();
+                if (!result.catchingUp || result.error) { state.nftsDone=result.syncComplete; return result; }
+                // Each slice releases the NFT mutation queue for recent receipts and transfers.
+                await new Promise(resolve=>setTimeout(resolve,0));
+              }
+            } } : {}),
           });
           state.phase = 'complete'; privacyStatus = 'ready'; privacyError = '';
           return snapshots;

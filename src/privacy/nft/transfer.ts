@@ -152,7 +152,10 @@ export class NftTransferEngine {
       pool,
       cmx: note.cmx,
       seed,
-      firstBlock: j.pools?.[pool]?.firstBlock,
+      firstBlock:
+        j.pools?.[pool]?.deploymentKnown === false
+          ? undefined
+          : j.pools?.[pool]?.firstBlock,
     });
     const { position, anchor, frozenRoot, maxActions } = path;
     if (

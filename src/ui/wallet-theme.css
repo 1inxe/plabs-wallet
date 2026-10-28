@@ -442,6 +442,10 @@ input[type='checkbox'] {
   color: var(--wallet-accent);
   background: #14bb871a;
 }
+.asset-symbol.asset-monogram {
+  font-size: 17px;
+  font-weight: 600;
+}
 .wallet-assets .asset-meta strong,
 .asset-meta strong {
   font-size: 14px;

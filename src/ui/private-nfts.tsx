@@ -40,6 +40,17 @@ export function PrivateNfts({
   const [sending, setSending] = useState(false);
   const [selected, setSelected] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
+  const isSyncing = managedSync?.busy ?? syncing;
+  const readRunning = useRef(false),
+    recentRunning = useRef(false),
+    generation = useRef(0);
+  useEffect(() => {
+    generation.current++;
+    if (!unlocked || chainId !== 1) setSnapshot(null);
+    return () => {
+      generation.current++;
+    };
+  }, [chainId, unlocked]);
   useEffect(() => {
     if (
       !unlocked ||
@@ -61,26 +72,62 @@ export function PrivateNfts({
     };
   }, []);
   const read = async () => {
+    if (readRunning.current || !unlocked || chainId !== 1) return;
+    readRunning.current = true;
+    const revision = generation.current;
     try {
       const value = await callWallet<Snapshot>('GET_PRIVATE_NFT_ASSETS');
-      if (active.current) {
+      if (active.current && revision === generation.current) {
         setSnapshot(value);
         setError('');
       }
     } catch (cause) {
-      if (active.current) setError(walletErrorMessage(cause));
+      if (active.current && revision === generation.current)
+        setError(walletErrorMessage(cause));
+    } finally {
+      readRunning.current = false;
     }
   };
+  useEffect(() => {
+    if (!managed || !automaticSync || !unlocked || chainId !== 1) return;
+    let enabled = true;
+    const recent = async () => {
+      if (!enabled || recentRunning.current) return;
+      recentRunning.current = true;
+      const revision = generation.current;
+      try {
+        const value = await callWallet<Snapshot>('SYNC_PRIVATE_NFT_ASSETS', {
+          recentOnly: true,
+        });
+        if (enabled && active.current && revision === generation.current)
+          setSnapshot(value);
+      } catch {
+        /* The full sync and manual retry retain their visible error state. */
+      } finally {
+        recentRunning.current = false;
+      }
+    };
+    void recent();
+    const timer = window.setInterval(() => void recent(), 15000);
+    return () => {
+      enabled = false;
+      window.clearInterval(timer);
+    };
+  }, [managed, automaticSync, unlocked, chainId]);
   const sync = async () => {
     if (running.current || !unlocked || chainId !== 1) return;
     running.current = true;
+    const revision = generation.current;
     setSyncing(true);
     setError('');
     try {
-      const value = await callWallet<Snapshot>('SYNC_PRIVATE_NFT_ASSETS');
-      if (active.current) setSnapshot(value);
+      const value = await callWallet<Snapshot>('SYNC_PRIVATE_NFT_ASSETS', {
+        recentOnly: true,
+      });
+      if (active.current && revision === generation.current) setSnapshot(value);
     } catch (cause) {
-      if (active.current) setError(walletErrorMessage(cause));
+      if (active.current && revision === generation.current)
+        setError(walletErrorMessage(cause));
     } finally {
       running.current = false;
       if (active.current) setSyncing(false);
@@ -102,11 +149,10 @@ export function PrivateNfts({
       () => {
         void read();
       },
-      syncing ? 2000 : 6000,
+      isSyncing ? 2000 : 6000,
     );
     return () => window.clearInterval(timer);
-  }, [syncing, unlocked, chainId]);
-  const isSyncing = managedSync?.busy ?? syncing;
+  }, [isSyncing, unlocked, chainId]);
   const selectedAsset = snapshot?.items.find((asset) => asset.id === selected);
   return (
     <section className="panel private-nft-assets">

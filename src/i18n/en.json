@@ -865,5 +865,11 @@
   "同步详情": "Sync details",
   "查看同步详情": "Show sync details",
   "收起同步详情": "Hide sync details",
-  "同步{0}": "Syncing {0}"
+  "同步{0}": "Syncing {0}",
+  "NFT 检查点区块编号不符": "NFT checkpoint block number does not match",
+  "NFT 历史页未提供连续区块覆盖": "NFT history response does not cover a continuous block range",
+  "正在检查近期 NFT…": "Checking recent NFTs…",
+  "公开历史读取线程已停止，请重新打开钱包": "Public history reader stopped. Reopen the wallet.",
+  "公开历史读取超时，请继续同步": "Public history request timed out. Continue syncing.",
+  "NFT 历史加速暂不可用": "NFT history acceleration is temporarily unavailable"
 }

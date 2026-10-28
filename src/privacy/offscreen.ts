@@ -55,15 +55,22 @@ let nextId = 0;
 let nextNativeSyncId = 0;
 const nativeSyncPending = new Map<
   number,
-  { resolve: (value: any) => void; reject: (error: Error) => void }
+  { resolve: (value: any) => void; reject: (error: Error) => void; timer: ReturnType<typeof setTimeout> }
 >();
 
 nativeRpcSync.onmessage = (event) => {
   const pending = nativeSyncPending.get(event.data.id);
   if (!pending) return;
+  clearTimeout(pending.timer);
   nativeSyncPending.delete(event.data.id);
   event.data.ok ? pending.resolve(event.data.page) : pending.reject(new Error(event.data.error));
 };
+const failNativeSync = () => {
+  for (const pending of nativeSyncPending.values()) { clearTimeout(pending.timer); pending.reject(new Error('公开历史读取线程已停止，请重新打开钱包')); }
+  nativeSyncPending.clear();
+};
+nativeRpcSync.onerror = failNativeSync;
+nativeRpcSync.onmessageerror = failNativeSync;
 
 const callWorker = (
   worker: Worker,
@@ -79,11 +86,13 @@ const callWorker = (
 
 const callProver = (method: string, payload: Record<string, unknown>) =>
   proverClient.call(method, payload);
-const callNativeSync = (input: Record<string, unknown>) => {
+const callNativeSync = (input: Record<string, unknown>, timeoutMs = 45000) => {
   const id = ++nextNativeSyncId;
   return new Promise<any>((resolve, reject) => {
-    nativeSyncPending.set(id, { resolve, reject });
-    nativeRpcSync.postMessage({ id, input });
+    const timer = setTimeout(() => { nativeSyncPending.delete(id); reject(new Error('公开历史读取超时，请继续同步')); }, timeoutMs);
+    nativeSyncPending.set(id, { resolve, reject, timer });
+    try { nativeRpcSync.postMessage({ id, input }); }
+    catch (cause) { clearTimeout(timer);nativeSyncPending.delete(id);reject(cause); }
   });
 };
 const normalizeHex = (value: unknown) => String(value ?? '').replace(/^0x/i, '').toLowerCase();
@@ -148,6 +157,8 @@ const nftContext = (account: string, binding?: unknown, transfer = false) => {
   const id = nftJournalId(active.privacyAddress);
   const ports: NftPorts = {
     guard,
+    birthday: active.birthdayBlocks[1],
+    history: async input => { await guard(); const page = await getNftHistoryPage(input); await guard(); return page; },
     load: async () => {
       await guard(); const response = await chrome.runtime.sendMessage({ action: 'GET_NFT_JOURNAL', privacyAddress: active.privacyAddress });
       if (!response?.ok) throw new Error(response?.error?.message ?? 'NFT 恢复记录读取失败');
@@ -869,6 +880,23 @@ const getLogsPage = async ({
 };
 
 const rpcLogSpans = new Map<ChainId, number>();
+let nftHistoryCooldown = 0;
+const getNftHistoryPage = async (input: {pool:string;firstBlock:number;afterBlock:number;targetBlock:number}) => {
+  if (Date.now() < nftHistoryCooldown) throw new Error('NFT 历史加速暂不可用');
+  const network = NETWORKS[1], base = network.plabs!.nativeRpcSync;
+  try {
+    const page = await callNativeSync({
+      chainId: 1, rpcUrls: network.rpcUrls, pool: input.pool,
+      manifest: {...base, pools:[{address:input.pool, deployBlock:Math.max(1,input.firstBlock),protocolVersion:3,abiVersions:['current-v2']}]},
+      afterBlock:input.afterBlock,targetBlock:input.targetBlock,
+      maxPageBlocks:100000,maxGetLogsSpan:base.maxGetLogsSpan,maxEventsPerPage:50000,
+    },15000);
+    const toBlock = Number(page.scanned_to_seq);
+    if (!Number.isSafeInteger(toBlock)||toBlock<=input.afterBlock||toBlock>input.targetBlock||!/^0x[0-9a-f]{64}$/i.test(String(page.scanned_to_hash))) throw new Error('NFT 历史页未提供连续区块覆盖');
+    const notes:Record<string,unknown>[] = (Array.isArray(page.envelopes)?page.envelopes:[]).flatMap((envelope:any)=>Array.isArray(envelope?.batch?.abi_notes)?envelope.batch.abi_notes:[]);
+    return {notes,toBlock,checkpoint:String(page.scanned_to_hash)};
+  } catch (cause) { nftHistoryCooldown=Date.now()+30000;throw cause; }
+};
 const getHistoryPage = async ({
   chainId,
   poolAddress,
@@ -893,6 +921,11 @@ const getHistoryPage = async ({
       rpcUrls: network.rpcUrls,
       pool: poolAddress,
       manifest,
+      // Public prefetch hints only: one union query can fill the worker's per-pool
+      // caches. Each pool still decrypts and advances its own verified cursor.
+      peerCursors: Object.fromEntries(manifest.pools
+        .filter(pool => pool.deployBlock <= afterBlock + 1)
+        .map(pool => [pool.address.toLowerCase(), afterBlock])),
       afterBlock,
       targetBlock,
       maxPageBlocks: manifest.portal?.maxRequestBlocks ?? manifest.maxGetLogsSpan,
@@ -1365,7 +1398,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       if (message.action === 'PRIVACY_NFT_SYNC') {
         const sync = async () => {
           if (!active || session !== active) throw new Error('隐私会话已变化');
-          return nftContext(message.account, message.binding, message.internalSync === true).assets.sync(message.includeTransfers === true, message.rescan === true);
+          return nftContext(message.account, message.binding, message.internalSync === true).assets.sync(message.includeTransfers === true, message.rescan === true, message.recentOnly === true);
         };
         return queueNft(sync);
       }

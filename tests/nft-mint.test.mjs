@@ -735,11 +735,20 @@ test('NFT synchronization exposes real block progress and adapts to a 50-block p
       Number(BigInt(c.params[0].fromBlock)),
       Number(BigInt(c.params[0].toBlock)),
     ]);
-  assert.deepEqual(ranges, [
-    [10, 59],
-    [60, 109],
-    [110, 143],
-  ]);
+  assert.deepEqual(
+    ranges.slice(0, 3),
+    [
+      [16, 65],
+      [66, 115],
+      [116, 143],
+    ],
+    'Recent history is checked before the deployment floor is searched',
+  );
+  assert.deepEqual(
+    ranges.slice(3),
+    [[10, 15]],
+    'The old gap is scanned without skipping or rescanning recent history',
+  );
 });
 test('a reorg during NFT scanning cannot advance the cursor or save a false holding', async () => {
   const f = syncFixture(),
@@ -759,7 +768,7 @@ test('a reorg during NFT scanning cannot advance the cursor or save a false hold
   assert.equal(result.syncComplete, false);
   assert.match(result.error, /区块已变化/);
   assert.equal(result.items.length, 0);
-  assert.equal(f.journal().pools[pool].cursor, 9);
+  assert.equal(f.journal().pools[pool].cursor, -1);
 });
 
 test('NFT signing refuses changed nonce, pending balance or gas after approval', async () => {
@@ -845,4 +854,229 @@ test('NFT gas quotes obey the same one-native-coin cap before requesting approva
   );
   assert.equal(approvals, 0);
   assert.equal(signatures, 0);
+});
+
+test('a recent incoming NFT is persisted before deployment discovery or a blocked historical page', async () => {
+  const f = syncFixture(),
+    rpc = f.ports.rpc,
+    save = f.ports.save;
+  let historicalStarted = false;
+  f.ports.rpc = async (method, params) => {
+    if (method === 'eth_getBlockByNumber' && params[0] === 'latest')
+      return { number: '0x3e8', hash: blockHash };
+    if (method === 'eth_getCode') {
+      assert.equal(
+        f.journal().holdings?.[0]?.tokenId,
+        '55',
+        'Recent ownership is already published before the deployment search',
+      );
+      return rpc(method, params);
+    }
+    if (method === 'eth_getLogs') {
+      const from = Number(BigInt(params[0].fromBlock)),
+        to = Number(BigInt(params[0].toBlock));
+      if (from <= 995 && to >= 995) {
+        const old = await rpc(method, [
+          { ...params[0], fromBlock: '0xb', toBlock: '0xb' },
+        ]);
+        return old.map((log) => ({ ...log, blockNumber: '0x3e3' }));
+      }
+      return [];
+    }
+    return rpc(method, params);
+  };
+  f.ports.history = async () => {
+    historicalStarted = true;
+    assert.equal(f.journal().holdings[0].tokenId, '55');
+    throw Error('history unavailable');
+  };
+  const result = await f.engine.sync();
+  assert.equal(result.items[0].tokenId, '55');
+  assert.equal(historicalStarted, true);
+  assert.equal(result.syncComplete, false);
+  assert.equal(result.catchingUp, true);
+  assert.ok(
+    f.journal().pools[pool].cursor < 871,
+    'Recent coverage does not pretend that the historical gap is scanned',
+  );
+  assert.equal(f.journal().pools[pool].recent.to, 999);
+  f.ports.save = save;
+});
+
+test('recent checks are incremental, avoid old spent notes, and retain an explicit historical gap', async () => {
+  const f = syncFixture(),
+    rpc = f.ports.rpc;
+  let head = 1000;
+  f.ports.rpc = (method, params) =>
+    method === 'eth_getBlockByNumber' && params[0] === 'latest'
+      ? Promise.resolve({ number: '0x' + head.toString(16), hash: blockHash })
+      : rpc(method, params);
+  f.ports.scan = async () => [];
+  await f.engine.sync(true, false, true);
+  const count = f.calls.filter((c) => c.method === 'eth_getLogs').length;
+  const second = await f.engine.sync(true, false, true);
+  assert.equal(
+    f.calls.filter((c) => c.method === 'eth_getLogs').length,
+    count,
+    'No new blocks means no log query',
+  );
+  assert.equal(second.syncComplete, false);
+  head = 1003;
+  await f.engine.sync(true, false, true);
+  const last = f.calls.filter((c) => c.method === 'eth_getLogs').at(-1)
+    .params[0];
+  assert.deepEqual(
+    [Number(BigInt(last.fromBlock)), Number(BigInt(last.toBlock))],
+    [1000, 1002],
+  );
+  assert.equal(f.journal().pools[pool].cursor, -1);
+});
+
+test('bounded history slices resume to completion without losing recent coverage or duplicate holdings', async () => {
+  const f = syncFixture(),
+    rpc = f.ports.rpc,
+    oldLog = await rpc('eth_getLogs', [{ fromBlock: '0xb', toBlock: '0xb' }]);
+  f.ports.rpc = async (method, params) => {
+    if (method === 'eth_getBlockByNumber' && params[0] === 'latest')
+      return { number: '0x3e8', hash: blockHash };
+    if (method === 'eth_getLogs') return [];
+    return rpc(method, params);
+  };
+  const intervals = [];
+  f.ports.history = async (input) => {
+    const to = Math.min(input.afterBlock + 100, input.targetBlock);
+    intervals.push([input.afterBlock + 1, to]);
+    const decoded = (await import('../src/privacy/events.ts')).decodePrivacyLog(
+      oldLog[0],
+    );
+    return {
+      toBlock: to,
+      checkpoint: blockHash,
+      notes: input.afterBlock < 11 && to >= 11 ? [decoded] : [],
+    };
+  };
+  const first = await f.engine.sync();
+  assert.equal(first.syncComplete, false);
+  assert.equal(first.catchingUp, true);
+  assert.equal(intervals.length, 8);
+  assert.equal(first.items[0].tokenId, '55');
+  const second = await f.engine.sync();
+  assert.equal(second.syncComplete, true);
+  assert.equal(second.items.length, 1);
+  assert.equal(f.journal().pools[pool].cursor, 999);
+  assert.deepEqual(intervals, [
+    [10, 109],
+    [110, 209],
+    [210, 309],
+    [310, 409],
+    [410, 509],
+    [510, 609],
+    [610, 709],
+    [710, 809],
+    [810, 871],
+  ]);
+});
+
+test('a verified account birthday narrows initial catch-up, but explicit rescan covers pre-birthday history', async () => {
+  const f = syncFixture(),
+    rpc = f.ports.rpc;
+  f.ports.birthday = { number: 900, hash: blockHash };
+  f.ports.rpc = async (method, params) => {
+    if (method === 'eth_getBlockByNumber' && params[0] === 'latest')
+      return { number: '0x3e8', hash: blockHash };
+    if (method === 'eth_getLogs') return [];
+    return rpc(method, params);
+  };
+  const history = [];
+  f.ports.history = async (input) => {
+    history.push([input.afterBlock + 1, input.targetBlock]);
+    return { notes: [], toBlock: input.targetBlock, checkpoint: blockHash };
+  };
+  assert.equal((await f.engine.sync()).syncComplete, true);
+  assert.equal(
+    history.length,
+    0,
+    'Birthday is inside the already checked recent window',
+  );
+  assert.equal(f.journal().pools[pool].scanStartBlock, 900);
+  assert.equal((await f.engine.sync(false, true)).syncComplete, true);
+  assert.deepEqual(
+    history,
+    [[10, 871]],
+    'A deliberate rescan never skips earlier history',
+  );
+});
+
+test('a reorg invalidates recent coverage and removes the orphaned incoming NFT', async () => {
+  const f = syncFixture(),
+    rpc = f.ports.rpc;
+  let changed = false;
+  f.ports.rpc = async (method, params) => {
+    if (method === 'eth_getBlockByNumber' && params[0] === 'latest')
+      return { number: '0x14', hash: blockHash };
+    if (method === 'eth_getBlockByNumber' && changed)
+      return { number: params[0], hash: '0x' + 'ab'.repeat(32) };
+    if (method === 'eth_getLogs' && changed) return [];
+    return rpc(method, params);
+  };
+  assert.equal((await f.engine.sync(true, false, true)).items.length, 1);
+  changed = true;
+  const result = await f.engine.sync(true, false, true);
+  assert.equal(result.items.length, 0);
+  assert.equal(result.syncComplete, false);
+});
+
+test('production NFT history is checked before retired test history, while recent checks cover both', async () => {
+  const f = syncFixture(),
+    rpc = f.ports.rpc,
+    retired = NFT.retired[0],
+    histories = [],
+    recentPools = new Set();
+  f.ports.rpc = async (method, params) => {
+    if (method === 'eth_getBlockByNumber' && params[0] === 'latest')
+      return { number: '0x3e8', hash: blockHash };
+    if (method === 'eth_getLogs') {
+      recentPools.add(params[0].address);
+      return [];
+    }
+    if (method === 'eth_call') {
+      const call = nftInterface.parseTransaction({ data: params[0].data });
+      if (call.name === 'poolCount')
+        return nftInterface.encodeFunctionResult('poolCount', [2]);
+      if (call.name === 'pools')
+        return nftInterface.encodeFunctionResult('pools', [
+          Number(call.args[0]) === 0 ? retired : pool,
+        ]);
+    }
+    return rpc(method, params);
+  };
+  f.ports.history = async (input) => {
+    histories.push(input.pool);
+    return { notes: [], toBlock: input.targetBlock, checkpoint: blockHash };
+  };
+  const result = await f.engine.sync();
+  assert.equal(result.syncComplete, true);
+  assert.deepEqual([...recentPools].sort(), [retired, pool].sort());
+  assert.deepEqual(histories, [pool, retired]);
+});
+
+test('an invalid accelerated history checkpoint cannot bridge a historical gap', async () => {
+  const f = syncFixture(),
+    rpc = f.ports.rpc;
+  f.ports.rpc = async (method, params) =>
+    method === 'eth_getBlockByNumber' && params[0] === 'latest'
+      ? { number: '0x3e8', hash: blockHash }
+      : method === 'eth_getLogs'
+        ? []
+        : rpc(method, params);
+  f.ports.history = async (input) => ({
+    notes: [],
+    toBlock: input.targetBlock,
+    checkpoint: '0x' + 'ab'.repeat(32),
+  });
+  const result = await f.engine.sync();
+  assert.equal(result.syncComplete, false);
+  assert.match(result.error, /区块已变化/);
+  assert.equal(f.journal().pools[pool].cursor, 9);
+  assert.equal(f.journal().pools[pool].recent.to, 999);
 });

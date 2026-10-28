@@ -46,10 +46,13 @@ export type NftHolding = {
 };
 export type NftCursor = {
   firstBlock: number;
+  deploymentKnown?: boolean;
+  scanStartBlock?: number;
   cursor: number;
   blockHash?: string;
   name: string;
   symbol: string;
+  recent?: { from: number; to: number; blockHash: string };
 };
 export type MintJournal = {
   schema: 1;

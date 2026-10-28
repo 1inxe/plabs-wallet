@@ -34,6 +34,10 @@ export interface NftPorts {
   broadcast(raw: string): Promise<unknown>;
   indexer?(path: string): Promise<unknown>;
   scan(notes: Json[]): Promise<Array<{ note: Json; nullifier: string }>>;
+  birthday?: { number: number; hash: string };
+  history?(input: { pool: string; firstBlock: number; afterBlock: number; targetBlock: number }): Promise<{
+    notes: Json[]; toBlock: number; checkpoint: string;
+  }>;
 }
 export class NftMintEngine {
   constructor(

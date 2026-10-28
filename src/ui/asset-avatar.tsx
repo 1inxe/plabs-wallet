@@ -1,3 +1,32 @@
+const LETTER_COLORS = [
+  '#efb16b',
+  '#8aaff0',
+  '#c69aeb',
+  '#77cbb0',
+  '#b0a1ed',
+  '#df96ad',
+  '#d4bf6c',
+  '#7dc6d2',
+  '#a8bc7a',
+  '#d5a885',
+  '#9ca9eb',
+  '#c4a0ca',
+  '#8fc3ae',
+  '#caa37b',
+  '#d3a2b4',
+  '#a2b7e3',
+  '#b1be88',
+  '#d8a38d',
+  '#a49cde',
+  '#deb878',
+  '#83b9df',
+  '#b5a4d7',
+  '#98c0bd',
+  '#d5a7c3',
+  '#bdc786',
+  '#dbab91',
+];
+
 export function AccountAvatar({ address }: { address: string }) {
   let seed = 0;
   for (const char of address)
@@ -33,8 +62,24 @@ export function AssetAvatar({
   symbol: string;
   native?: boolean;
 }) {
+  const letter =
+    Array.from(
+      symbol
+        .replace(/^s(?=[A-Z])/, '')
+        .trim()
+        .toUpperCase(),
+    )[0] ?? '?';
+  const index = letter.codePointAt(0) ?? 63;
+  const color =
+    LETTER_COLORS[
+      (index >= 65 && index <= 90 ? index - 65 : index) % LETTER_COLORS.length
+    ];
+  const monogram = symbol !== 'ETH';
   return (
-    <span className={`asset-symbol ${native ? 'native-coin' : 'private-coin'}`}>
+    <span
+      className={`asset-symbol ${native ? 'native-coin' : 'private-coin'} ${monogram ? 'asset-monogram' : ''}`}
+      style={monogram ? { color, backgroundColor: `${color}1a` } : undefined}
+    >
       {symbol === 'ETH' ? (
         <svg viewBox="0 0 24 32" width="19" height="26" aria-hidden="true">
           <path d="M12 0 1 16l11 6 11-6Z" fill="currentColor" />
@@ -42,7 +87,7 @@ export function AssetAvatar({
           <path d="M12 0v22l11-6Z" fill="#000" opacity=".18" />
         </svg>
       ) : (
-        <span>{symbol.replace(/^s(?=[A-Z])/, '').slice(0, 4)}</span>
+        <span>{letter}</span>
       )}
     </span>
   );

@@ -29,9 +29,9 @@ const server = await createServer({
     import { PrivateNfts } from '/src/ui/private-nfts.tsx'; import '/src/ui/index.css'; import '/src/ui/wallet-theme.css';
     const confirmed={id:'synthetic-owned',chainId:1,type:'perc721',poolAddress:'0x'+'12'.repeat(20),name:'Jubjub Bird',symbol:'JUBJUB',tokenId:'7',txHash:'0x'+'34'.repeat(32),blockNumber:10,state:'confirmed',source:'chain'};
     let snapshot={chainId:1,items:[confirmed,{...confirmed,id:'synthetic-pending',tokenId:'8',state:'pending'}],syncedAt:Date.now(),syncComplete:true};
-    window.__nftUi={syncs:0,sends:[],reject:true,spend(){snapshot={...snapshot,items:[]};},fail(){snapshot={...snapshot,error:'Synthetic RPC outage',syncComplete:false};}};
-    window.chrome={runtime:{async sendMessage(request){if(request.action==='SYNC_PRIVATE_NFT_ASSETS')window.__nftUi.syncs++;if(request.action==='SEND_PRIVATE_NFT'){window.__nftUi.sends.push(request);if(window.__nftUi.reject)return{ok:false,error:{message:'用户取消 NFT 发送'}};return{ok:true,result:{id:'synthetic-transfer',state:'submitted',recipient:'12'.repeat(43),txHash:'0x'+'45'.repeat(32)}};}if(request.action==='GET_PRIVATE_NFT_TRANSFER')return{ok:true,result:{id:'synthetic-transfer',state:'submitted',recipient:'12'.repeat(43),txHash:'0x'+'45'.repeat(32)}};if(!['GET_PRIVATE_NFT_ASSETS','SYNC_PRIVATE_NFT_ASSETS'].includes(request.action))throw new Error('Unexpected UI request');return{ok:true,result:snapshot};}}};
-    function Fixture(){const[unlocked,setUnlocked]=React.useState(true);window.__nftUi.lock=()=>setUnlocked(false);return React.createElement('div',{className:'wallet-shell'},React.createElement('main',{className:'page-body'},React.createElement(WalletAssets,{publicAssets:React.createElement('section',{className:'panel'},'公开代币 · ETH'),privateAssets:React.createElement('section',{className:'panel'},'隐私代币 · P20 / sUSDC'),nfts:React.createElement(PrivateNfts,{key:String(unlocked),chainId:1,unlocked,automaticSync:true})})));}
+    window.__nftUi={syncs:0,requests:[],sends:[],reject:true,spend(){snapshot={...snapshot,items:[]};},fail(){snapshot={...snapshot,error:'Synthetic RPC outage',syncComplete:false};}};
+    window.chrome={runtime:{async sendMessage(request){window.__nftUi.requests.push(request);if(request.action==='SYNC_PRIVATE_NFT_ASSETS')window.__nftUi.syncs++;if(request.action==='SEND_PRIVATE_NFT'){window.__nftUi.sends.push(request);if(window.__nftUi.reject)return{ok:false,error:{message:'用户取消 NFT 发送'}};return{ok:true,result:{id:'synthetic-transfer',state:'submitted',recipient:'12'.repeat(43),txHash:'0x'+'45'.repeat(32)}};}if(request.action==='GET_PRIVATE_NFT_TRANSFER')return{ok:true,result:{id:'synthetic-transfer',state:'submitted',recipient:'12'.repeat(43),txHash:'0x'+'45'.repeat(32)}};if(!['GET_PRIVATE_NFT_ASSETS','SYNC_PRIVATE_NFT_ASSETS'].includes(request.action))throw new Error('Unexpected UI request');return{ok:true,result:snapshot};}}};
+    function Fixture(){const[unlocked,setUnlocked]=React.useState(true);const[managed,setManaged]=React.useState(false);window.__nftUi.manage=()=>{snapshot={...snapshot,error:undefined,items:[{...confirmed,id:'received-during-catchup',tokenId:'7'}],syncComplete:false};setManaged(true);};window.__nftUi.lock=()=>setUnlocked(false);return React.createElement('div',{className:'wallet-shell'},React.createElement('main',{className:'page-body'},React.createElement(WalletAssets,{publicAssets:React.createElement('section',{className:'panel'},'公开代币 · ETH'),privateAssets:React.createElement('section',{className:'panel'},'隐私代币 · P20 / sUSDC'),nfts:React.createElement(PrivateNfts,{key:String(unlocked),chainId:1,unlocked,automaticSync:true,...(managed?{managedSync:{busy:true,revision:0}}:{})})})));}
     createRoot(document.getElementById('root')).render(React.createElement(Fixture));
   `;
       },
@@ -245,8 +245,11 @@ try {
       .getByRole('button', { name: '同步隐私 NFT', exact: true })
       .click();
     await page.locator('.sync-notice').waitFor();
-    assert.match(await page.locator('.sync-notice pre').textContent(),/Synthetic RPC outage/);
-    assert.equal(await page.locator('.sync-notice pre').isVisible(),false);
+    assert.match(
+      await page.locator('.sync-notice pre').textContent(),
+      /Synthetic RPC outage/,
+    );
+    assert.equal(await page.locator('.sync-notice pre').isVisible(), false);
     assert.equal(
       await page
         .getByRole('button', { name: '查看 Jubjub Bird #7', exact: true })
@@ -261,6 +264,30 @@ try {
     await page
       .getByRole('button', { name: '查看 Jubjub Bird #7', exact: true })
       .waitFor({ state: 'hidden' });
+    const recentBefore = await page.evaluate(
+      () =>
+        window.__nftUi.requests.filter(
+          (r) =>
+            r.action === 'SYNC_PRIVATE_NFT_ASSETS' && r.recentOnly === true,
+        ).length,
+    );
+    await page.evaluate(() => window.__nftUi.manage());
+    await page
+      .getByRole('button', { name: '查看 Jubjub Bird #7', exact: true })
+      .waitFor();
+    await page.waitForFunction(
+      (before) =>
+        window.__nftUi.requests.filter(
+          (r) =>
+            r.action === 'SYNC_PRIVATE_NFT_ASSETS' && r.recentOnly === true,
+        ).length > before,
+      recentBefore,
+    );
+    assert.equal(
+      await page.locator('.private-nft-grid article').count(),
+      1,
+      'Recent incoming NFTs display during an incomplete managed historical sync',
+    );
     await page.evaluate(() => window.__nftUi.lock());
     await page.getByText('解锁隐私钱包后查看 NFT', { exact: true }).waitFor();
     assert.equal(await page.locator('.private-nft-art img').count(), 0);
