@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import { Gem, History, Settings, Wallet } from 'lucide-react';
 export type WalletScreen = 'assets' | 'nfts' | 'activity' | 'settings';
 const screens = [
@@ -14,16 +15,16 @@ export function WalletNavigation({
   onChange(value: WalletScreen): void;
 }) {
   return (
-    <nav className="wallet-navigation" aria-label="钱包导航">
+    <nav className="wallet-navigation" aria-label={t('钱包导航')}>
       {screens.map(({ id, label, icon: Icon }) => (
         <button
           key={id}
-          aria-label={label}
+          aria-label={t(label)}
           aria-current={value === id ? 'page' : undefined}
           onClick={() => onChange(id)}
         >
           <Icon size={22} strokeWidth={1.7} />
-          <span>{label}</span>
+          <span>{t(label)}</span>
         </button>
       ))}
     </nav>

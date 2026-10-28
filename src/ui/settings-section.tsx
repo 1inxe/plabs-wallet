@@ -1,7 +1,7 @@
+import { t } from '../i18n';
 import { useState, type ReactNode } from 'react';
 import { ChevronRight } from 'lucide-react';
 import { Button, PageView } from './primitives';
-
 export function SettingsSection({
   title,
   icon,
@@ -26,19 +26,19 @@ export function SettingsSection({
     <>
       <button className="settings-menu-item" onClick={() => setOpen(true)}>
         {icon}
-        <span>{title}</span>
+        <span>{t(title)}</span>
         <ChevronRight size={16} />
       </button>
-      <PageView open={open} onOpenChange={setOpen} busy={busy} title={title}>
+      <PageView open={open} onOpenChange={setOpen} busy={busy} title={t(title)}>
         {children}
         {error && (
           <p role="alert" className="micro text-danger">
-            {error}
+            {t(error)}
           </p>
         )}
         {message && (
           <p role="status" className="micro text-mint">
-            {message}
+            {t(message)}
           </p>
         )}
         {onSave && (
@@ -49,7 +49,7 @@ export function SettingsSection({
               if (await onSave()) setOpen(false);
             }}
           >
-            保存设置
+            {t(' 保存设置 ')}
           </Button>
         )}
       </PageView>

@@ -1,7 +1,7 @@
+import { t } from '../i18n';
 import { Gem, ImageOff, RefreshCw } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { loadNftArtwork } from '../privacy/nft/artwork';
-
 export function NftArtwork({
   pool,
   tokenId,
@@ -41,18 +41,18 @@ export function NftArtwork({
   ) : (
     <div className="nft-art-placeholder" role="status">
       {error ? <ImageOff size={26} /> : <Gem size={26} />}
-      <span>{error ? '图片暂不可用' : '正在加载图片…'}</span>
+      <span>{error ? t('图片暂不可用') : t('正在加载图片\u2026')}</span>
       {error && (
         <button
           type="button"
-          aria-label={`重试 ${name} #${tokenId} 图片`}
+          aria-label={t('重试 {0} #{1} 图片', [name, tokenId])}
           onClick={(event) => {
             event.stopPropagation();
             setRevision((value) => value + 1);
           }}
         >
           <RefreshCw size={13} />
-          重试
+          {t(' 重试 ')}
         </button>
       )}
     </div>

@@ -1,10 +1,13 @@
+import { t } from '../i18n';
 import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
-
 const ROW_HEIGHT = 84;
 const OVERSCAN = 5;
-
 /** Keep a single native scrollbar while mounting only the visible history rows. */
-export function ActivityTimeline<T extends { id: string }>({
+export function ActivityTimeline<
+  T extends {
+    id: string;
+  },
+>({
   items,
   renderRow,
 }: {
@@ -17,7 +20,6 @@ export function ActivityTimeline<T extends { id: string }>({
   const restoreTop = useRef<number | undefined>();
   const frame = useRef<number | undefined>();
   const [window, setWindow] = useState({ top: 0, height: 400 });
-
   useLayoutEffect(() => {
     const element = viewport.current;
     if (!element) return;
@@ -52,7 +54,6 @@ export function ActivityTimeline<T extends { id: string }>({
       frame.current = undefined;
     };
   }, []);
-
   useLayoutEffect(() => {
     const element = viewport.current;
     if (!element) return;
@@ -78,7 +79,6 @@ export function ActivityTimeline<T extends { id: string }>({
     }
     setWindow(geometry.current);
   }, [items]);
-
   const start = Math.max(0, Math.floor(window.top / ROW_HEIGHT) - OVERSCAN);
   const end = Math.min(
     items.length,
@@ -90,7 +90,7 @@ export function ActivityTimeline<T extends { id: string }>({
       ref={viewport}
       role="list"
       tabIndex={0}
-      aria-label="最近活动列表"
+      aria-label={t('最近活动列表')}
     >
       <div
         className="activity-virtual-space"

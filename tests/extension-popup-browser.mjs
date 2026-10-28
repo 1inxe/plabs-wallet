@@ -98,7 +98,7 @@ try {
     }
     return { command, target };
   };
-  for (const mode of ['setup', 'locked']) {
+  for (const mode of ['setup', 'locked', 'locked-zh']) {
     if (mode === 'locked')
       await worker.evaluate(async (vault) => {
         await chrome.storage.local.set({
@@ -112,11 +112,13 @@ try {
             },
           ],
           activeWalletAccountId: 'popup-layout-fixture',
+          walletUiLanguage: 'en',
         });
       }, fixtureVault);
+    if(mode==='locked-zh')await worker.evaluate(()=>chrome.storage.local.remove('walletUiLanguage'));
     const { command, target } = await open();
     const result = await command('Runtime.evaluate', {
-      expression: `JSON.stringify({width:innerWidth,height:innerHeight,htmlWidth:document.documentElement.getBoundingClientRect().width,bodyWidth:document.body.getBoundingClientRect().width,horizontalOverflow:document.documentElement.scrollWidth>innerWidth,passwordWidth:document.querySelector('.password-field input')?.getBoundingClientRect().width,heading:document.querySelector('h1')?.textContent})`,
+      expression: `JSON.stringify({width:innerWidth,height:innerHeight,htmlWidth:document.documentElement.getBoundingClientRect().width,bodyWidth:document.body.getBoundingClientRect().width,horizontalOverflow:document.documentElement.scrollWidth>innerWidth,passwordWidth:document.querySelector('.password-field input')?.getBoundingClientRect().width,heading:document.querySelector('h1')?.textContent,language:document.documentElement.lang,placeholder:document.querySelector('.password-field input')?.getAttribute('placeholder')})`,
       returnByValue: true,
     });
     const size = JSON.parse(result.result.value);
@@ -125,7 +127,9 @@ try {
     assert.equal(size.bodyWidth, 370);
     assert.equal(size.horizontalOverflow, false);
     assert.ok(size.passwordWidth >= 300);
-    if (mode === 'locked') assert.equal(size.heading, 'PLabs Wallet');
+    if (mode !== 'setup') assert.equal(size.heading, 'PLabs Wallet');
+    assert.equal(size.language,mode==='locked'?'en':'zh-CN');
+    if(mode!=='setup')assert.equal(size.placeholder,mode==='locked'?'Enter wallet password':'请输入钱包主密码');
     const shot = await command('Page.captureScreenshot', {
       format: 'png',
       captureBeyondViewport: false,

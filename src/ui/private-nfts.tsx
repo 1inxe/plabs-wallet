@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import { ExternalLink, RefreshCw, Send } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import type { NftAssetSummary } from '../privacy/nft/holdings';
@@ -9,7 +10,6 @@ import { NftArtwork } from './nft-artwork';
 import { parsePrivacyAddress, formatPrivacyAddress } from '../privacy/address';
 import { SyncNotice } from './sync-notice';
 import { EmptyState } from './wallet-design';
-
 type Snapshot = {
   chainId: 1;
   items: NftAssetSummary[];
@@ -27,7 +27,10 @@ export function PrivateNfts({
   chainId: number;
   unlocked: boolean;
   automaticSync: boolean;
-  managedSync?: { busy: boolean; revision: number };
+  managedSync?: {
+    busy: boolean;
+    revision: number;
+  };
 }) {
   const managed = Boolean(managedSync);
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
@@ -58,7 +61,10 @@ export function PrivateNfts({
   const read = async () => {
     try {
       const value = await callWallet<Snapshot>('GET_PRIVATE_NFT_ASSETS');
-      if (active.current) { setSnapshot(value); setError(''); }
+      if (active.current) {
+        setSnapshot(value);
+        setError('');
+      }
     } catch (cause) {
       if (active.current) setError(walletErrorMessage(cause));
     }
@@ -85,7 +91,7 @@ export function PrivateNfts({
     if (automaticSync) void sync();
     const timer = window.setInterval(() => {
       if (automaticSync && !running.current) void sync();
-    }, 120_000);
+    }, 120000);
     return () => window.clearInterval(timer);
   }, [chainId, unlocked, automaticSync, managed, managedSync?.revision]);
   useEffect(() => {
@@ -106,7 +112,7 @@ export function PrivateNfts({
         <div className="row-between">
           <h2>NFT</h2>
           <IconButton
-            label="同步隐私 NFT"
+            label={t('同步隐私 NFT')}
             disabled={!unlocked || chainId !== 1 || syncing}
             onClick={() => void sync()}
           >
@@ -115,9 +121,9 @@ export function PrivateNfts({
         </div>
       )}
       {!unlocked ? (
-        <EmptyState>解锁隐私钱包后查看 NFT</EmptyState>
+        <EmptyState>{t('解锁隐私钱包后查看 NFT')}</EmptyState>
       ) : chainId !== 1 ? (
-        <EmptyState>切换至 Ethereum 查看及同步隐私 NFT</EmptyState>
+        <EmptyState>{t('切换至 Ethereum 查看及同步隐私 NFT')}</EmptyState>
       ) : (
         <>
           <div className="private-nft-grid">
@@ -132,11 +138,11 @@ export function PrivateNfts({
                   <button
                     type="button"
                     className="nft-art-open"
-                    aria-label={`查看 ${asset.name} #${asset.tokenId}`}
+                    aria-label={t('查看 {0} #{1}', [asset.name, asset.tokenId])}
                     onClick={() => setSelected(asset.id)}
                   />
                   {asset.state === 'pending' && (
-                    <span className="nft-pending-badge">确认中</span>
+                    <span className="nft-pending-badge">{t('确认中')}</span>
                   )}
                 </div>
                 <button
@@ -153,21 +159,25 @@ export function PrivateNfts({
           {!snapshot?.items.length && (
             <EmptyState>
               {isSyncing
-                ? '正在扫描当前隐私账户的 NFT…'
+                ? t('正在扫描当前隐私账户的 NFT\u2026')
                 : snapshot?.syncComplete
-                  ? '已同步，当前隐私地址暂无 NFT'
+                  ? t('已同步，当前隐私地址暂无 NFT')
                   : managed
-                    ? 'NFT 尚未完成同步，点击上方同步隐私资产'
-                    : 'NFT 尚未完成同步，点击右上角同步'}
+                    ? t('NFT 尚未完成同步，点击上方同步隐私资产')
+                    : t('NFT 尚未完成同步，点击右上角同步')}
             </EmptyState>
           )}
           {!managed && syncing && (
             <p className="micro text-muted" role="status">
-              正在同步…
+              {t(' 正在同步\u2026 ')}
             </p>
           )}
           {(error || (!managed && snapshot?.error)) && (
-            <SyncNotice error={error || snapshot!.error!} busy={isSyncing} onRetry={()=>void (managed ? read() : sync())}/>
+            <SyncNotice
+              error={error || snapshot!.error!}
+              busy={isSyncing}
+              onRetry={() => void (managed ? read() : sync())}
+            />
           )}
         </>
       )}
@@ -193,22 +203,24 @@ export function PrivateNfts({
           </div>
           <div className="panel form-stack">
             <div className="row-between">
-              <span>持有状态</span>
+              <span>{t('持有状态')}</span>
               <strong>
-                {selectedAsset.state === 'pending' ? '等待链上确认' : '已持有'}
+                {selectedAsset.state === 'pending'
+                  ? t('等待链上确认')
+                  : t('已持有')}
               </strong>
             </div>
             <div className="row-between">
-              <span>编号</span>
+              <span>{t('编号')}</span>
               <strong>#{selectedAsset.tokenId}</strong>
             </div>
             <div>
-              <small>合集地址</small>
+              <small>{t('合集地址')}</small>
               <p className="mono break-all">{selectedAsset.poolAddress}</p>
               <CopyButton
                 compact
                 value={selectedAsset.poolAddress}
-                label="复制 NFT 合集地址"
+                label={t('复制 NFT 合集地址')}
               />
             </div>
           </div>
@@ -220,8 +232,8 @@ export function PrivateNfts({
           >
             <Send size={16} />
             {selectedAsset.transfer?.state === 'submitted'
-              ? '查看发送进度'
-              : '发送 NFT'}
+              ? t('查看发送进度')
+              : t('发送 NFT')}
           </Button>
           {sending && (
             <NftSend
@@ -236,14 +248,14 @@ export function PrivateNfts({
             target="_blank"
             rel="noreferrer"
           >
-            查看链上交易 <ExternalLink size={14} />
+            {t(' 查看链上交易 ')}
+            <ExternalLink size={14} />
           </a>
         </PageView>
       )}
     </section>
   );
 }
-
 type TransferStatus = {
   id: string;
   state: string;
@@ -332,11 +344,11 @@ function NftSend({
       onOpenChange={(open) => {
         if (!open) onClose();
       }}
-      title="发送 NFT"
+      title={t('发送 NFT')}
       description={`${asset.name} #${asset.tokenId}`}
     >
       <div className="panel nft-send-form">
-        <label htmlFor="nft-recipient">接收方隐私地址</label>
+        <label htmlFor="nft-recipient">{t('接收方隐私地址')}</label>
         <textarea
           id="nft-recipient"
           value={recipient}
@@ -346,29 +358,29 @@ function NftSend({
           autoComplete="off"
           spellCheck={false}
         />
-        <small>仅支持 PLabs 隐私地址，Gas 使用 ETH 支付。</small>
+        <small>{t('仅支持 PLabs 隐私地址，Gas 使用 ETH 支付。')}</small>
         <Button
           variant="primary"
           disabled={busy || pending || done || !recipient.trim()}
           onClick={() => void send()}
         >
           {busy
-            ? '正在生成证明，请稍候…'
+            ? t('正在生成证明，请稍候\u2026')
             : done
-              ? '已发送'
+              ? t('已发送')
               : pending
-                ? '等待链上确认'
-                : '确认发送并查看 Gas'}
+                ? t('等待链上确认')
+                : t('确认发送并查看 Gas')}
         </Button>
       </div>
       {pending && (
         <p role="status" className="panel text-mint micro">
-          已提交，等待链上确认。
+          {t(' 已提交，等待链上确认。 ')}
         </p>
       )}
       {done && (
         <p role="status" className="panel text-mint micro">
-          NFT 已发送。
+          {t(' NFT 已发送。 ')}
         </p>
       )}
       {transfer?.txHash && (
@@ -378,22 +390,21 @@ function NftSend({
           target="_blank"
           rel="noreferrer"
         >
-          查看发送交易
+          {t(' 查看发送交易 ')}
           <ExternalLink size={14} />
         </a>
       )}
       {transfer?.message && (
-        <p className="micro text-muted">{transfer.message}</p>
+        <p className="micro text-muted">{t(transfer.message)}</p>
       )}
       {error && (
         <p role="alert" className="private-nft-error">
-          {error}
+          {t(error)}
         </p>
       )}
     </PageView>
   );
 }
-
 // Keep the NFT detail/send pages mounted while the signer requests final approval.
 export function NftTransferApproval({
   task,
@@ -422,7 +433,7 @@ export function NftTransferApproval({
       open
       busy
       onOpenChange={() => {}}
-      title={task.approval?.title ?? '正在发送 NFT'}
+      title={task.approval?.title ?? t('正在发送 NFT')}
       description="PLabs Wallet · Ethereum"
     >
       {task.approval ? (
@@ -430,33 +441,33 @@ export function NftTransferApproval({
           <div className="panel approval-fields">
             {Object.entries(task.approval.details).map(([label, value]) => (
               <div className="approval-field" key={label}>
-                <small>{label}</small>
-                <p>{value}</p>
+                <small>{t(label)}</small>
+                <p>{label === '消息' ? value : t(value)}</p>
               </div>
             ))}
           </div>
           <div className="approval-actions">
             <Button disabled={busy} onClick={() => void decide(false)}>
-              取消发送
+              {t(' 取消发送 ')}
             </Button>
             <Button
               variant="primary"
               disabled={busy}
               onClick={() => void decide(true)}
             >
-              确认发送
+              {t(' 确认发送 ')}
             </Button>
           </div>
         </>
       ) : (
         <div className="empty-state">
           <RefreshCw size={25} className="animate-spin text-mint" />
-          <p>{task.message ?? '正在核对并提交已确认的交易…'}</p>
+          <p>{t(task.message) || t('正在核对并提交已确认的交易\u2026')}</p>
         </div>
       )}
       {error && (
         <p className="private-nft-error" role="alert">
-          {error}
+          {t(error)}
         </p>
       )}
     </PageView>

@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import * as Tabs from '@radix-ui/react-tabs';
 import type { ReactNode } from 'react';
 export type AssetScope = 'public' | 'private';
@@ -23,9 +24,9 @@ export function WalletAssets({
         if (next === 'public' || next === 'private') onChange?.(next);
       }}
     >
-      <Tabs.List className="wallet-asset-tabs" aria-label="资产类型">
-        <Tabs.Trigger value="private">隐私资产</Tabs.Trigger>
-        <Tabs.Trigger value="public">公开资产</Tabs.Trigger>
+      <Tabs.List className="wallet-asset-tabs" aria-label={t('资产类型')}>
+        <Tabs.Trigger value="private">{t('隐私资产')}</Tabs.Trigger>
+        <Tabs.Trigger value="public">{t('公开资产')}</Tabs.Trigger>
         {nfts && <Tabs.Trigger value="nfts">NFT</Tabs.Trigger>}
       </Tabs.List>
       <Tabs.Content value="public" className="wallet-asset-content">

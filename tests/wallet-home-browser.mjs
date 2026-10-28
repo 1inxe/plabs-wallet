@@ -74,14 +74,27 @@ try {
         : route.abort(),
     );
     await page.goto(origin + '/wallet-home-fixture');
-    const nav = page.getByRole('navigation', { name: '钱包导航' });
-    const screen = async (name) =>
-      nav.getByRole('button', { name, exact: true }).click();
-    const shot = async (name) =>
-      page.screenshot({
+    const nav = page.locator('.wallet-navigation');
+    const screen = async (name) => {
+      const button = nav.getByRole('button', { name, exact: true });
+      await button.click();
+      await page.waitForFunction(
+        (node) => node.getAttribute('aria-current') === 'page',
+        await button.elementHandle(),
+      );
+    };
+    const shot = async (name) => {
+      await page.evaluate(
+        () =>
+          new Promise((resolve) =>
+            requestAnimationFrame(() => requestAnimationFrame(resolve)),
+          ),
+      );
+      return page.screenshot({
         path: join(artifacts, `${name}-${width}.png`),
         fullPage: false,
       });
+    };
     await nav.waitFor();
     await page.waitForFunction(() => window.__homeSync.phase === 'complete');
     assert.equal(
@@ -293,6 +306,87 @@ try {
       false,
       true,
     ]);
+    // Language changes keep the wallet mounted and leave transaction payloads alone.
+    await screen('设置');
+    await page
+      .getByRole('button', { name: '语言 简体中文', exact: true })
+      .click();
+    await page.getByRole('radio', { name: 'English', exact: true }).click();
+    await page
+      .getByRole('heading', { name: 'Language', exact: true })
+      .waitFor();
+    assert.equal(await page.locator('html').getAttribute('lang'), 'en');
+    await page.getByRole('button', { name: 'Back', exact: true }).click();
+    await shot('settings-en');
+    await screen('Assets');
+    await page.getByText('Private portfolio', { exact: true }).waitFor();
+    assert.equal(await page.locator('.asset-quantity').innerText(), '7 sUSDC');
+    await shot('home-en');
+    const capture = () =>
+      page.evaluate(async () => {
+        const snapshots = [];
+        for (let frame = 0; frame < 20; frame++) {
+          await new Promise(requestAnimationFrame);
+          snapshots.push(
+            [
+              ...document.querySelectorAll(
+                '.wallet-navigation, .wallet-navigation > button, .wallet-navigation > button > svg',
+              ),
+            ].map((node) => {
+              const r = node.getBoundingClientRect();
+              return [r.x, r.y, r.width, r.height];
+            }),
+          );
+        }
+        return snapshots;
+      });
+    const baseline = (await capture())[0];
+    for (const target of ['Collectibles', 'Activity', 'Settings', 'Assets']) {
+      const frames = capture();
+      await screen(target);
+      assert.deepEqual(
+        await frames,
+        Array.from({ length: 20 }, () => baseline),
+        'Navigation and icons remain fixed while selection changes: ' + target,
+      );
+    }
+    await screen('Collectibles');
+    await page
+      .getByText('Synced. No NFTs at this private address.', { exact: true })
+      .waitFor();
+    await shot('nfts-en');
+    await screen('Activity');
+    await page.getByText('No local activity yet', { exact: true }).waitFor();
+    await shot('activity-en');
+    await page.evaluate(() => window.__homeApproval());
+    await page
+      .getByRole('heading', { name: 'Confirm NFT transfer & gas', exact: true })
+      .waitFor();
+    await page.getByText('NFT token ID', { exact: true }).waitFor();
+    await shot('approval-en');
+    await page
+      .getByRole('button', { name: 'Cancel send', exact: true })
+      .click();
+    await screen('Settings');
+    await page.getByRole('button', { name: 'Account', exact: true }).click();
+    await page.getByRole('textbox').fill('Locale test');
+    const tokenSyncs = await page.evaluate(() => window.__homeSync.tokens);
+    await page.evaluate(async () => {
+      const { setLanguage } = await import('/src/i18n/index.ts');
+      await setLanguage('zh-CN');
+    });
+    await page.getByRole('heading', { name: '账户', exact: true }).waitFor();
+    assert.equal(
+      await page.getByRole('textbox').inputValue(),
+      'Locale test',
+      'Switching language preserves form input',
+    );
+    assert.equal(
+      await page.evaluate(() => window.__homeSync.tokens),
+      tokenSyncs,
+      'Switching language never starts another asset scan',
+    );
+    await page.getByRole('button', { name: '返回', exact: true }).click();
     await screen('资产');
     await page.waitForFunction(() => scrollY === 0);
     await page.evaluate(
@@ -371,6 +465,21 @@ try {
       true,
     );
     await shot('setup');
+    await page.evaluate(() => window.__homeScreen('home'));
+    await nav.waitFor();
+    await screen('设置');
+    await page
+      .getByRole('button', { name: '语言 简体中文', exact: true })
+      .click();
+    await page.getByRole('radio', { name: 'English', exact: true }).click();
+    await page.getByRole('button', { name: 'Back', exact: true }).click();
+    await page.reload();
+    await page.getByRole('button', { name: 'Assets', exact: true }).waitFor();
+    assert.equal(
+      await page.locator('html').getAttribute('lang'),
+      'en',
+      'Language is retained after reopening the page',
+    );
     assert.deepEqual(errors, []);
     console.log(
       'PASS wallet navigation, balances, unified sync, account isolation, approvals, forms and backup at ' +
