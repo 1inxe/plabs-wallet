@@ -1,5 +1,6 @@
 import { AbiCoder, Interface } from 'ethers';
 import { encodeTransfer, reverseHexByByte } from '../operations';
+import { buildNftMerklePath } from './merkle';
 import { parsePrivacyAddress } from '../address';
 import type { NftPorts } from './engine';
 import type { MintJournal } from './journal';
@@ -143,67 +144,63 @@ export class NftTransferEngine {
       ])) !== false
     )
       throw new Error('NFT 已转出或凭证尚未确认');
-    const query = new URLSearchParams({ pool, cmx: raw(note.cmx, 32) });
-    const path = object(await this.indexer(`/merkle_path?${query}`));
+    const path = await buildNftMerklePath(this.p, {
+      pool,
+      cmx: note.cmx,
+      seed,
+      firstBlock: j.pools?.[pool]?.firstBlock,
+    });
+    const { position, anchor, frozenRoot, maxActions } = path;
     if (
-      path.frozen !== true ||
-      !Array.isArray(path.siblings) ||
-      path.siblings.length !== 32
-    )
-      throw new Error('NFT 证明路径尚未确认，请稍后同步重试');
-    const position = integer(path.position),
-      anchor = raw(path.anchor_root, 32);
-    const calculated = object(
-      await this.p.prove('merkle_root_from_path', {
-        seed_hex: seed,
-        cmx_be_hex: hash(note.cmx),
-        position,
-        siblings: path.siblings,
-      }),
-    );
-    if (
-      raw(calculated.root_le_hex, 32) !== anchor ||
       (await this.view(pool, 'isValidAnchor', [
         `0x${reverseHexByByte(anchor)}`,
       ])) !== true
     )
-      throw new Error('NFT 证明路径本地校验失败');
-    const [root, frozenRoot, actions, frozen] = await Promise.all([
-      this.view(pool, 'cmxRoot'),
-      this.view(pool, 'cmxFrozenRoot'),
-      this.view(pool, 'maxActions'),
-      this.indexer(`/frozen_leaves?pool=${pool}`),
-    ]);
-    const maxActions = integer(actions);
-    if (maxActions < 1 || maxActions > 32)
-      throw new Error('NFT 合约动作上限无效');
+      throw new Error('NFT 确认根已更新，请重新发送');
+    let frozenUnavailable = false;
+    const frozen = await this.indexer(`/frozen_leaves?pool=${pool}`).catch(
+      async () => {
+        await this.p.guard();
+        frozenUnavailable = true;
+        return { leaves: [] };
+      },
+    );
     const blacklist = object(frozen).leaves;
     if (!Array.isArray(blacklist)) throw new Error('NFT 冻结记录无效');
     const proof = object(
-      await this.p.prove('prove_note', {
-        seed_hex: seed,
-        bip44_coin_type: 60,
-        account_id: 0,
-        chain_id: 1,
-        pool_address: pool,
-        anchor_hex: `0x${reverseHexByByte(String(root))}`,
-        spend_notes: [note.note],
-        merkle_path_overrides: [
-          {
-            cmx_hex: raw(note.cmx, 32),
-            position,
-            siblings: path.siblings,
-            anchor_hex: `0x${anchor}`,
+      await this.p
+        .prove('prove_note', {
+          seed_hex: seed,
+          bip44_coin_type: 60,
+          account_id: 0,
+          chain_id: 1,
+          pool_address: pool,
+          anchor_hex: `0x${anchor}`,
+          spend_notes: [note.note],
+          merkle_path_overrides: [
+            {
+              cmx_hex: raw(note.cmx, 32),
+              position,
+              siblings: path.siblings,
+              anchor_hex: `0x${anchor}`,
+            },
+          ],
+          transfer_output: {
+            value_sats: tokenId,
+            recipient_raw_address_hex: recipient,
           },
-        ],
-        transfer_output: {
-          value_sats: tokenId,
-          recipient_raw_address_hex: recipient,
-        },
-        max_actions: maxActions,
-        frozen_blacklist: blacklist,
-        expected_frozen_root: String(frozenRoot),
-      }),
+          max_actions: maxActions,
+          frozen_blacklist: blacklist,
+          expected_frozen_root: String(frozenRoot),
+        })
+        .catch((cause) => {
+          if (
+            frozenUnavailable &&
+            /frozen.*root|frozen_blacklist/i.test(String(cause))
+          )
+            throw new Error('NFT 冻结状态暂不可验证，请稍后重试');
+          throw cause;
+        }),
     );
     // The ID is the note value; sending must preserve the entire ID, without a fee/change output.
     const funding = proof.funding_notes;

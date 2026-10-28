@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { registerHooks } from 'node:module';
 import { test } from 'node:test';
 import ts from 'typescript';
-import { Interface, Wallet, keccak256 } from 'ethers';
+import { AbiCoder, Interface, Wallet, keccak256 } from 'ethers';
 registerHooks({
   resolve(specifier, context, next) {
     try {
@@ -34,6 +34,7 @@ const { NftTransferEngine, inspectNftTransfer } =
 const { signNftTransferTransaction } =
   await import('../src/privacy/nft/signing.ts');
 const { nftInterface } = await import('../src/privacy/nft/protocol.ts');
+const { NOTE_CONFIRMED_TOPIC } = await import('../src/privacy/events.ts');
 const { reverseHexByByte } = await import('../src/privacy/operations.ts');
 const wallet = new Wallet('0x' + '11'.repeat(32)),
   pool = '0x' + '12'.repeat(20),
@@ -48,6 +49,8 @@ const wallet = new Wallet('0x' + '11'.repeat(32)),
   root = '0x' + 'ab'.repeat(32);
 const poolAbi = new Interface([
   'function cmxRoot() view returns(bytes32)',
+  'function confirmedRoot() view returns(bytes32)',
+  'function confirmedCount() view returns(uint256)',
   'function cmxFrozenRoot() view returns(bytes32)',
   'function isValidAnchor(bytes32) view returns(bool)',
   'function maxActions() view returns(uint256)',
@@ -66,13 +69,27 @@ function fixture() {
     blockNumber: 10,
     spent: false,
   };
-  let journal = { schema: 1, records: [], holdings: [holding] };
+  let journal = {
+    schema: 1,
+    records: [],
+    holdings: [holding],
+    pools: {
+      [pool]: {
+        firstBlock: 1,
+        cursor: 31,
+        name: 'Synthetic NFT',
+        symbol: 'NFT',
+      },
+    },
+  };
   const state = {
     signatures: 0,
     broadcasts: [],
     known: true,
     spent: false,
     badPath: false,
+    indexerDown: false,
+    frozenMismatch: false,
     badOutput: false,
     badRecipient: false,
     reject: false,
@@ -92,7 +109,26 @@ function fixture() {
     rpc: async (method, params) => {
       if (method === 'eth_chainId') return '0x1';
       if (method === 'eth_getTransactionReceipt') return state.receipt;
-      if (method === 'eth_getBlockByNumber') return { number: '0x20' };
+      if (method === 'eth_getBlockByNumber')
+        return {
+          number: params[0] === 'latest' ? '0x20' : params[0],
+          hash: '0x' + 'aa'.repeat(32),
+        };
+      if (method === 'eth_getLogs')
+        return [
+          {
+            address: pool,
+            topics: [NOTE_CONFIRMED_TOPIC, cmx],
+            data: AbiCoder.defaultAbiCoder().encode(
+              ['bytes32', 'uint256'],
+              [root, 0],
+            ),
+            blockNumber: '0xa',
+            blockHash: '0x' + 'aa'.repeat(32),
+            transactionHash: '0x' + 'bb'.repeat(32),
+            logIndex: '0x0',
+          },
+        ];
       const abi = poolAbi.parseTransaction({ data: params[0].data })
         ? poolAbi
         : nftInterface;
@@ -102,24 +138,30 @@ function fixture() {
         cmxExists: true,
         isSpent: state.spent,
         cmxRoot: root,
+        confirmedRoot: root,
+        confirmedCount: 1,
         cmxFrozenRoot: root,
         isValidAnchor: true,
         maxActions: 32,
       };
       return abi.encodeFunctionResult(call.name, [values[call.name]]);
     },
-    indexer: async (path) =>
-      path.startsWith('/merkle_path')
-        ? {
-            frozen: true,
-            position: 0,
-            siblings: Array(32).fill(root),
-            anchor_root: root,
-          }
-        : { leaves: [] },
+    indexer: async (path) => {
+      assert.ok(path.startsWith('/frozen_leaves'));
+      if (state.indexerDown) throw Error('HTTP 404');
+      return { leaves: [] };
+    },
     prove: async (method, body) => {
+      if (method === 'tree_reset') return {};
+      if (method === 'tree_append') return { size: 1 };
+      if (method === 'tree_paths')
+        return {
+          rootLeHex: root,
+          overrides: [{ position: 0, siblings: Array(32).fill(root) }],
+        };
       if (method === 'merkle_root_from_path')
         return { root_le_hex: state.badPath ? '00'.repeat(32) : root };
+      if (state.frozenMismatch) throw Error('frozen_blacklist root mismatch');
       assert.equal(body.spend_notes.length, 1);
       assert.equal(body.transfer_output.value_sats, 7);
       assert.equal(body.transfer_output.recipient_raw_address_hex, recipient);
@@ -308,4 +350,21 @@ test('NFT read consent does not expose local transfer recipients or recovery rec
     publicNftAssets(f.journal(), true).items[0].transfer.recipient,
     recipient,
   );
+});
+
+test('NFT sends work when the legacy indexer returns 404, while frozen-root verification remains mandatory', async () => {
+  const f = fixture();
+  f.state.indexerDown = true;
+  assert.equal(
+    (await f.engine.send(f.assetId, recipient, '11'.repeat(32))).state,
+    'submitted',
+  );
+  const blocked = fixture();
+  blocked.state.indexerDown = true;
+  blocked.state.frozenMismatch = true;
+  await assert.rejects(
+    blocked.engine.send(blocked.assetId, recipient, '11'.repeat(32)),
+    /冻结状态/,
+  );
+  assert.equal(blocked.state.signatures, 0);
 });

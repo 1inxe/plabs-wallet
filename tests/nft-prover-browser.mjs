@@ -179,6 +179,9 @@ try {
       throw new Error('tree paths: ' + e.message);
     });
 
+    // The production path builder releases its temporary tree before proving.
+    await nft('tree_reset', { pool, generation: 1 });
+
     const transfer = await nft('prove_note', {
       ...request,
       chain_id: 1,
@@ -195,9 +198,38 @@ try {
         recipient_raw_address_hex: receiver.raw_address_hex,
       },
       max_actions: 32,
+      frozen_blacklist: [],
+      expected_frozen_root:
+        '0x14129e1a7b0c0bb49c8a385c619393ce9bb43194036f10c00db446ea0c6e780b',
     }).catch((e) => {
       throw new Error('prove transfer: ' + e.message);
     });
+    let mismatchRejected = false;
+    try {
+      await nft('prove_note', {
+        ...request,
+        chain_id: 1,
+        pool_address: pool,
+        anchor_hex: paths.rootLeHex,
+        spend_notes: scanned.owned_notes,
+        merkle_path_overrides: paths.overrides.map((path) => ({
+          ...path,
+          cmx_hex: hex(a.cmx),
+          anchor_hex: paths.rootLeHex,
+        })),
+        transfer_output: {
+          value_sats: 1,
+          recipient_raw_address_hex: receiver.raw_address_hex,
+        },
+        max_actions: 32,
+        frozen_blacklist: [],
+        expected_frozen_root: '0x' + '01'.repeat(32),
+      });
+    } catch (error) {
+      mismatchRejected = /frozen_blacklist root mismatch/.test(error.message);
+    }
+    if (!mismatchRejected)
+      throw new Error('Mismatched frozen root was accepted');
     const received = await nft('scan', {
       bn254_ivk_hex: receiver.bn254_ivk_hex,
       notes: transfer.bundle.actions.map((action) => ({

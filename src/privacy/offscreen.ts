@@ -157,9 +157,9 @@ const nftContext = (account: string, binding?: unknown, transfer = false) => {
       if (!response?.ok) throw new Error(response?.error?.message ?? 'NFT 恢复记录保存失败'); await guard();
     },
     indexer: async path => {
-      if(!/^\/(merkle_path\?pool=0x[0-9a-f]{40}&cmx=[0-9a-f]{64}|frozen_leaves\?pool=0x[0-9a-f]{40})$/.test(path))throw new Error('NFT 索引路径不允许');
+      if(!/^\/frozen_leaves\?pool=0x[0-9a-f]{40}$/.test(path))throw new Error('NFT 索引路径不允许');
       await guard(); const response=await fetch(`https://eth-indexer.plabs.online${path}`,{credentials:'omit',redirect:'error',cache:'no-store',signal:AbortSignal.timeout(20_000)});
-      if(!response.ok)throw new Error(`NFT 证明路径服务尚未就绪 (HTTP ${response.status})`);
+      if(!response.ok)throw new Error(`NFT 冻结记录暂不可用 (HTTP ${response.status})`);
       const result=await readJsonResponse(response,8_000_000);await guard();return result;
     },
     api: async (path, body) => {
