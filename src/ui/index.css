@@ -344,15 +344,9 @@ body { width: min(100vw, 420px); margin-inline: auto; }
 .activity-status.review { color: #e0b76e; }
 .activity-status.failed { color: #ef939c; }
 .activity-status.confirmed { color: #7dd7a6; }
-.activity-day { font-size: 11px; color: #819b8d; margin: 18px 0 3px; }
-.activity-day:first-child { margin-top: 8px; }
-.activity-local-label { font-size: 9px; color: #7f9589; }
 .activity-empty { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 20px 0; color: #97afa2; font-size: 12px; }
 .activity-empty small { display: block; margin-top: 5px; font-size: 10px; }
 .activity-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-.activity-filters { display: grid; grid-template-columns: repeat(5,minmax(0,1fr)); gap: 3px; padding: 4px; background: #0b1115; border-radius: 10px; }
-.activity-filters button { padding: 9px 1px; font-size: 11px; color: #95ab9f; border-radius: 7px; }
-.activity-filters button[aria-pressed='true'] { background: #203d31; color: #8ef0be; }
 .activity-detail-hero { display: grid; justify-items: center; gap: 8px; padding: 14px 0; text-align: center; }
 .activity-detail-hero .activity-icon { width: 48px; height: 48px; border-radius: 16px; }
 .activity-detail-hero h1 { font-size: 17px; margin-top: 6px; }
@@ -560,3 +554,13 @@ html, body, #root, .wallet-shell { background: var(--wallet-canvas); }
 .private-nft-copy > strong { color: #d6e8dc; font-size: 12px; font-weight: 500; line-height: 17px; }
 .private-nft-copy > span { color: #819e8e; font-size: 10px; }
 @media (max-width: 379px) { .dashboard-body { padding: 14px 14px 22px; } .account-header { padding-inline: 14px; } .vault-card { padding-inline: 16px; } }
+
+.activity-history-view { display: flex; flex-direction: column; gap: 10px; height: calc(100dvh - 108px); min-height: 240px; }
+.activity-virtual-scroll { position: relative; flex: 1; min-height: 0; overflow-y: auto; overflow-anchor: none; overscroll-behavior: contain; scrollbar-gutter: stable; border-radius: 12px; }
+.activity-virtual-space { position: relative; width: 100%; }
+.activity-virtual-item { position: absolute; left: 0; width: 100%; }
+.activity-virtual-item .activity-row { height: 100%; margin: 0; padding: 12px 5px; grid-template-columns: 34px minmax(0,1fr) minmax(64px,36%); }
+.activity-virtual-item .activity-description > strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+.activity-virtual-item .activity-description > small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.activity-virtual-item .activity-quantity > strong { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.activity-toolbar > small { color: #829b8b; font-size: 11px; }

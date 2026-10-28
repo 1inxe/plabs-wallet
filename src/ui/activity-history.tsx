@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowDownToLine, ArrowRight, ArrowUpRight, ChevronLeft, ChevronRight, Clock, GitMerge, History, RefreshCw, ShieldCheck } from 'lucide-react';
+import { ArrowDownToLine, ArrowRight, ArrowUpRight, Clock, GitMerge, History, RefreshCw, ShieldCheck } from 'lucide-react';
 import { formatUnits } from 'ethers';
 import { callWallet } from '../shared/runtime';
 import { NETWORKS } from '../shared/networks';
 import type { ChainId, PrivacyActivity, PrivacyActivityPage } from '../shared/types';
-import { Button, IconButton, PageView, Select } from './primitives';
+import { Button, IconButton, PageView } from './primitives';
+import { ActivityTimeline } from './activity-timeline';
 import { CopyButton } from './wallet-design';
 
-const kinds = { send: '隐私发送', shield: '存入隐私池', unshield: '提取到公开账户', merge: "合并凭证", unknown: '资产操作' };
+const kinds = { send: '隐私发送', shield: '存入隐私池', unshield: '提取到公开账户', merge: '合并凭证', unknown: '资产操作' };
 const statuses = { pending: '处理中', confirmed: '已确认', failed: '失败', review: '需核对' };
 const short = (text: string) => `${text.slice(0, 10)}…${text.slice(-8)}`;
 const quantity = (raw?: string, decimals?: number) => {
@@ -18,10 +19,10 @@ const day = (timestamp: number) => {
   const date = new Date(timestamp); const today = new Date();
   if (date.toDateString() === today.toDateString()) return '今天';
   today.setDate(today.getDate() - 1);
-  return date.toDateString() === today.toDateString() ? '昨天' : date.toLocaleDateString();
+  return date.toDateString() === today.toDateString() ? '昨天' : date.toLocaleDateString('zh-CN');
 };
-const time = (timestamp: number) => new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-interface Query { chainId: ChainId; poolAddress?: string; id?: string; kind?: string; status?: string; page?: number; pageSize?: number }
+const time = (timestamp: number) => new Date(timestamp).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false });
+interface Query { chainId: ChainId; poolAddress?: string; id?: string; kind?: string; status?: string; page?: number; pageSize?: number; all?: boolean }
 function useActivity(query: Query) {
   const [data, setData] = useState<PrivacyActivityPage | null>(null);
   const [loading, setLoading] = useState(true);
@@ -54,15 +55,16 @@ function useActivity(query: Query) {
 function ActivityIcon({ kind }: { kind: PrivacyActivity['kind'] }) {
   return kind === 'send' ? <ArrowUpRight size={17} /> : kind === 'shield' ? <ShieldCheck size={17} /> : kind === 'unshield' ? <ArrowDownToLine size={17} /> : kind === 'merge' ? <GitMerge size={17} /> : <History size={17} />;
 }
-function ActivityRows({ items, hidden, onSelect, grouped = false }: { items: PrivacyActivity[]; hidden: boolean; onSelect: (id: string) => void; grouped?: boolean }) {
-  return <div className="activity-list">{items.map((item, index) => <div key={item.id}>
-    {grouped && (index === 0 || day(items[index - 1].createdAt) !== day(item.createdAt)) && <p className="activity-day">{day(item.createdAt)}</p>}
-    <button className="activity-row" onClick={() => onSelect(item.id)}>
-      <span className={`activity-icon ${item.kind}`}><ActivityIcon kind={item.kind} /></span>
-      <span className="activity-description"><strong>{kinds[item.kind]}{item.mergeBatch && <small>第 {item.mergeBatch}/{item.mergeBatches} 批</small>}</strong><small>{grouped ? time(item.createdAt) : `${day(item.createdAt)} ${time(item.createdAt)}`} · {item.paymentMode === 'private' ? '隐私支付' : item.paymentMode === 'native' ? `${NETWORKS[item.chainId].nativeSymbol} Gas` : '本地记录'}</small></span>
-      <span className="activity-quantity"><strong className="mono">{hidden ? '••••••' : quantity(item.amountRaw, item.decimals)} <small>{item.symbol}</small></strong><span className={`activity-status ${item.status}`}>{statuses[item.status]}</span></span>
-    </button>
-  </div>)}</div>;
+function ActivityRow({ item, hidden, onSelect }: { item: PrivacyActivity; hidden: boolean; onSelect: (id: string) => void }) {
+  const amount = hidden ? '••••••' : quantity(item.amountRaw, item.decimals);
+  return <button className="activity-row" onClick={() => onSelect(item.id)} data-created-at={item.createdAt}>
+    <span className={`activity-icon ${item.kind}`}><ActivityIcon kind={item.kind}/></span>
+    <span className="activity-description"><strong>{kinds[item.kind]}</strong><small>{day(item.createdAt)} {time(item.createdAt)}{item.mergeBatch ? ` · ${item.mergeBatch}/${item.mergeBatches} 批` : ''}</small></span>
+    <span className="activity-quantity"><strong className="mono" title={hidden ? undefined : `${amount} ${item.symbol}`}>{amount} <small>{item.symbol}</small></strong><span className={`activity-status ${item.status}`}>{statuses[item.status]}</span></span>
+  </button>;
+}
+function ActivityRows({ items, hidden, onSelect }: { items: PrivacyActivity[]; hidden: boolean; onSelect: (id: string) => void }) {
+  return <div className="activity-list">{items.map(item => <div key={item.id}><ActivityRow item={item} hidden={hidden} onSelect={onSelect}/></div>)}</div>;
 }
 function ActivityDetail({ id, chainId, hidden, onBack }: { id: string; chainId: ChainId; hidden: boolean; onBack: () => void }) {
   const { data, loading, error, refresh } = useActivity({ chainId, id, pageSize: 3 });
@@ -97,20 +99,14 @@ function ActivityDetail({ id, chainId, hidden, onBack }: { id: string; chainId: 
   </PageView>;
 }
 function HistoryPage({ chainId, poolAddress, symbol, hidden, onClose }: { chainId: ChainId; poolAddress?: string; symbol?: string; hidden: boolean; onClose: () => void }) {
-  const [kind, setKind] = useState('all');
-  const [status, setStatus] = useState('all');
-  const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<string | null>(null);
-  const { data, loading, error, refresh } = useActivity({ chainId, poolAddress, kind, status, page, pageSize: 20 });
-  useEffect(() => { if (data && data.page !== page) setPage(data.page); }, [data?.page]);
+  const { data, loading, error, refresh } = useActivity({ chainId, poolAddress, all: true });
   return <PageView open onOpenChange={onClose} title={symbol ? `${symbol} 操作记录` : '操作历史'} description={`${NETWORKS[chainId].name} · 本机记录`}>
-    <div className="activity-toolbar"><Select ariaLabel="筛选操作类型" value={kind} onValueChange={value => { setKind(value); setPage(1); }} options={[{ value: 'all', label: '全部操作' }, ...(['send', 'shield', 'unshield', 'merge'] as const).map(value => ({ value, label: kinds[value] }))]} /><IconButton label="刷新历史记录" disabled={loading} onClick={refresh}><RefreshCw size={16} className={loading ? 'animate-spin' : ''} /></IconButton></div>
-    <div className="activity-filters" aria-label="筛选操作状态">{([['all', '全部'], ['pending', '处理中'], ['confirmed', '已确认'], ['failed', '失败'], ['review', '需核对']] as const).map(([value, label]) => <button key={value} aria-pressed={status === value} onClick={() => { setStatus(value); setPage(1); }}>{label}</button>)}</div>
+    <div className="activity-history-view"><div className="activity-toolbar"><small>{data ? `${data.total} 条记录` : '按时间排序'}</small><IconButton label="刷新历史记录" disabled={loading} onClick={refresh}><RefreshCw size={16} className={loading ? 'animate-spin' : ''}/></IconButton></div>
     {error && <p role="alert" className="micro text-danger">{error}</p>}
-    {loading && !data ? <p className="empty-state">正在读取本地记录…</p> : data?.items.length ? <ActivityRows items={data.items} grouped hidden={hidden} onSelect={setSelected} /> : <div className="empty-state"><History size={28} /><p>暂无符合条件的操作记录</p></div>}
-    <div className="notes-pagination"><small>共 {data?.total ?? 0} 条 · 每页 20 条</small><div><IconButton label="上一页历史" disabled={loading || page <= 1} onClick={() => setPage(value => value - 1)}><ChevronLeft size={16} /></IconButton><span>{data?.page ?? page} / {data?.pages ?? 1}</span><IconButton label="下一页历史" disabled={loading || page >= (data?.pages ?? 1)} onClick={() => setPage(value => value + 1)}><ChevronRight size={16} /></IconButton></div></div>
-    <p className="micro text-muted">仅显示本机发起的操作。</p>
-    {selected && <ActivityDetail id={selected} chainId={chainId} hidden={hidden} onBack={() => setSelected(null)} />}
+    {loading && !data ? <p className="empty-state">正在读取记录…</p> : data?.items.length ? <ActivityTimeline items={data.items} renderRow={item => <ActivityRow item={item} hidden={hidden} onSelect={setSelected}/>}/> : <div className="empty-state"><History size={28}/><p>暂无本机操作记录</p></div>}
+    </div>
+    {selected && <ActivityDetail id={selected} chainId={chainId} hidden={hidden} onBack={() => setSelected(null)}/>}
   </PageView>;
 }
 export function ActivitySection({ chainId, poolAddress, symbol, hidden = false }: { chainId: ChainId; poolAddress?: string; symbol?: string; hidden?: boolean }) {

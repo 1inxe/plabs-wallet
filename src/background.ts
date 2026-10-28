@@ -1306,7 +1306,7 @@ const activityHistory = async (message: Record<string, unknown>, includeAll = fa
   const owned = [...byId.values()].filter(item => item.walletAddress?.toLowerCase() === wallet.address.toLowerCase() && item.chainId === chainId);
   const decoded = await Promise.all(owned.map(item => decodeActivity(item, key)));
   const pool = typeof message.poolAddress === 'string' ? message.poolAddress.toLowerCase() : undefined;
-  const items = decoded.filter(item => (!message.id || item.id === message.id) && (!pool || item.poolAddress?.toLowerCase() === pool) && (!message.kind || message.kind === 'all' || item.kind === message.kind) && (!message.status || message.status === 'all' || item.status === message.status)).sort((a, b) => b.createdAt - a.createdAt);
+  const items = decoded.filter(item => (!message.id || item.id === message.id) && (!pool || item.poolAddress?.toLowerCase() === pool) && (!message.kind || message.kind === 'all' || item.kind === message.kind) && (!message.status || message.status === 'all' || item.status === message.status)).sort((a, b) => b.createdAt - a.createdAt || b.id.localeCompare(a.id));
   const pageSize = [3, 10, 20, 50].includes(Number(message.pageSize)) ? Number(message.pageSize) : 20;
   const pages = Math.max(1, Math.ceil(items.length / pageSize));
   const page = Math.min(pages, Math.max(1, Number.isSafeInteger(message.page) ? Number(message.page) : 1));
@@ -2823,7 +2823,7 @@ const dispatchRuntimeMessage = async (message: Record<string, unknown>, sender: 
       return settings;
     }
     case 'GET_PRIVACY_ACTIVITY':
-      return activityHistory(message);
+      return activityHistory(message, message.all === true);
     case 'GET_PRIVACY_NOTES': {
       const chainId = Number(message.chainId) as ChainId;
       const poolAddress = String(message.poolAddress);
