@@ -170,9 +170,12 @@ test('portfolio percent uses previous price weights, sums every asset, and prese
   assert.ok(Math.abs(value.change) < 1e-10);
   assert.ok(Math.abs(value.percent) < 1e-10);
   assert.equal(value.unpriced, 1);
-  assert.equal(money(1234.5), '1,234.50');
+  assert.equal(money(1234.5), 'US$1,234.50');
   assert.equal(percentage(-1.25), '-1.25%');
   assert.equal(percentage(null), '0.00%');
-  assert.equal(signedMoney(-0.0005), '-0.0005');
-  assert.equal(signedMoney(0), '0.00');
+  assert.equal(signedMoney(-0.0005), 'US$0.00');
+  assert.equal(signedMoney(0), 'US$0.00');
+  assert.equal(signedMoney(0.39), '+US$0.39');
+  assert.equal(signedMoney(-0.39), '-US$0.39');
+  assert.equal(money(Number.NaN), 'US$0.00');
 });

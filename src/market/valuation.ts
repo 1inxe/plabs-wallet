@@ -31,15 +31,21 @@ export function portfolioValuation(
     ).length,
   };
 }
-export const money = (value: number) =>
-  new Intl.NumberFormat('en-US', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(Number.isFinite(value) ? value : 0);
+const usdNumber = new Intl.NumberFormat('en-US', {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
+export const money = (value: number) => {
+  const amount = Number.isFinite(value) ? value : 0;
+  const formatted = usdNumber.format(Math.abs(amount));
+  return `${amount < 0 && formatted !== '0.00' ? '-' : ''}US$${formatted}`;
+};
 export const percentage = (value: number | null | undefined) =>
   `${value && value > 0 ? '+' : ''}${(value ?? 0).toFixed(2)}%`;
 
 export const signedMoney = (value: number) => {
-  const abs = Math.abs(value);
-  return `${value < 0 ? '-' : value > 0 ? '+' : ''}${abs > 0 && abs < 0.005 ? new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 6 }).format(abs) : money(abs)}`;
+  const formatted = money(Math.abs(value));
+  const sign =
+    formatted === 'US$0.00' ? '' : value < 0 ? '-' : value > 0 ? '+' : '';
+  return `${sign}${formatted}`;
 };

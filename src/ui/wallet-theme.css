@@ -259,11 +259,6 @@ input[type='checkbox'] {
   letter-spacing: -0.055em;
   font-variant-numeric: tabular-nums;
 }
-.wallet-balance-amount > span {
-  color: #92929c;
-  font-size: 19px;
-  font-weight: 400;
-}
 .wallet-balance-amount.is-long strong {
   font-size: 35px;
 }
@@ -1045,10 +1040,6 @@ html.wallet-popup #root {
 .wallet-balance-amount strong {
   font-size: 48px;
 }
-.wallet-balance-amount > span {
-  font-size: 20px;
-  color: #a0aba5;
-}
 .wallet-market-summary {
   display: flex;
   align-items: center;
@@ -1119,11 +1110,6 @@ html.wallet-popup #root {
 .wallet-assets .asset-amount {
   font-size: 15px;
   white-space: nowrap;
-}
-.asset-amount > span {
-  font-size: 11px;
-  color: #929b95;
-  font-weight: 400;
 }
 .wallet-assets .asset-meta .asset-quantity {
   font-size: 11px;

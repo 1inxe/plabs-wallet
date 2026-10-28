@@ -1,8 +1,8 @@
 # Wallet interface
 
-PLabs is primarily a privacy wallet. Default to private assets and their total USD estimate (displayed in U); public ERC-20 assets belong in a secondary tab. Keep private transfers, receiving, shielding and NFT ownership prominent. Use restrained mint accents, clear hierarchy and concise copy.
+PLabs is primarily a privacy wallet. Default to private assets and their total USD estimate (displayed with the `US$` prefix); public ERC-20 assets belong in a secondary tab. Keep private transfers, receiving, shielding and NFT ownership prominent. Use restrained mint accents, clear hierarchy and concise copy.
 
-Show both token quantity with its unit and the estimated U value, plus 24-hour price changes. Aggregate portfolio changes using the current quantities at current and previous prices; this is a market-value comparison, not realized profit. Missing quotes default to 0 U and 0.00%, with a compact indication of incomplete pricing. Locked or explicitly hidden balances remain masked.
+Show both token quantity with its unit and the estimated USD value, plus 24-hour price changes. Aggregate portfolio changes using the current quantities at current and previous prices; this is a market-value comparison, not realized profit. Missing quotes default to US$0.00 and 0.00%, with a compact indication of incomplete pricing. Use `US$7.00`, `+US$0.39` and `-US$0.39` for fiat values; retain token symbols for quantities such as `7 sUSDC` or `0.0116 ETH`. Do not use a literal U suffix. Fiat amounts use two decimal places; changes rounding to zero have no negative sign. Locked or explicitly hidden balances remain masked.
 
 Prices come from DefiLlama's current-price and percentage APIs. Canonical contracts, never token symbols, determine identity. Private assets inherit their configured underlying asset's quote with the pool's scale/decimal conversion. P20 has no assumed dollar peg. Pricing requests contain only public token identifiers, with no account addresses, balances or private notes. Quote fetching belongs in the trusted extension background, with bounded responses, timeouts and caching.
 

@@ -97,7 +97,7 @@ try {
     );
     assert.equal(
       await page.locator('.wallet-balance-amount').innerText(),
-      '7.00\nU',
+      'US$7.00',
       'Privacy portfolio is the default and uses the underlying token quote',
     );
     assert.equal(await page.locator('.address-card').count(), 0);
@@ -114,6 +114,11 @@ try {
       true,
       'Ethereum withdrawal remains unavailable',
     );
+    assert.equal(await page.locator('.asset-amount').innerText(), 'US$7.00');
+    assert.match(
+      await page.locator('.wallet-market-change').innerText(),
+      /^US\$0\.00/,
+    );
     await shot('home-private-default');
     assert.equal(await page.locator('.asset-quantity').innerText(), '7 sUSDC');
     assert.equal(
@@ -123,7 +128,7 @@ try {
     await page.getByRole('tab', { name: '公开资产', exact: true }).click();
     assert.equal(
       await page.locator('.wallet-balance-amount').innerText(),
-      '2,400.00\nU',
+      'US$2,400.00',
     );
     assert.equal(await page.locator('.asset-quantity').innerText(), '1 ETH');
     assert.equal(
@@ -149,7 +154,7 @@ try {
     await page.getByRole('tab', { name: '隐私资产', exact: true }).click();
     assert.equal(
       await page.locator('.wallet-balance-amount').innerText(),
-      '7.00\nU',
+      'US$7.00',
     );
     await shot('home-private');
     await page.getByRole('button', { name: '隐藏余额', exact: true }).click();
