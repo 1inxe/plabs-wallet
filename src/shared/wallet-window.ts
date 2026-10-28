@@ -38,7 +38,7 @@ export function createWalletWindow(deps: {
     } catch {
       // Only our packaged wallet page is allowed. No dApp-supplied URL is ever opened.
       try {
-        const window = await deps.windows.create({ url, type: 'popup', width: 420, height: 720, focused: true });
+        const window = await deps.windows.create({ url, type: 'popup', width: 370, height: 720, focused: true });
         if (window?.id === undefined) return false;
         fallbackId = window.id; fallbackTabId = window.tabs?.[0]?.id;
         return true;

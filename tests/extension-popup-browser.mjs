@@ -120,11 +120,11 @@ try {
       returnByValue: true,
     });
     const size = JSON.parse(result.result.value);
-    assert.equal(size.width, 420);
-    assert.equal(size.htmlWidth, 420);
-    assert.equal(size.bodyWidth, 420);
+    assert.equal(size.width, 370);
+    assert.equal(size.htmlWidth, 370);
+    assert.equal(size.bodyWidth, 370);
     assert.equal(size.horizontalOverflow, false);
-    assert.ok(size.passwordWidth >= 320);
+    assert.ok(size.passwordWidth >= 300);
     if (mode === 'locked') assert.equal(size.heading, 'PLabs Wallet');
     const shot = await command('Page.captureScreenshot', {
       format: 'png',
