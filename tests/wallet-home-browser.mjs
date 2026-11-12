@@ -139,14 +139,14 @@ try {
     );
     assert.equal(
       await page.locator('.private-assets .asset-row').count(),
-      3,
+      4,
       'Official zero-balance pools are visible by default',
     );
     assert.deepEqual(
       await page
         .locator('.private-assets .asset-monogram > span')
         .allTextContents(),
-      ['U', 'U', 'E'],
+      ['U', 'U', 'E', 'P'],
     );
     const avatarColors = await page
       .locator('.private-assets .asset-monogram')

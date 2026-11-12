@@ -122,6 +122,8 @@ export const NETWORKS: Record<ChainId, NetworkConfig> = {
           { abiVersions: ['current-v2'], address: '0xfc8bf8b613cae37db53003ec6a306a62d5a0b7c5', deployBlock: 25794948, protocolVersion: 3 },
           { abiVersions: ['current-v2'], address: '0xb7d514522c91285421bf79c53e81c50ae484baad', deployBlock: 25794948, protocolVersion: 3 },
           { abiVersions: ['current-v2'], address: '0xed16fa3238d9814f194579baf75caecd75f015da', deployBlock: 25794948, protocolVersion: 3 },
+          // Official Monad → Ethereum P20 migration destination.
+          { abiVersions: ['current-v2'], address: '0x955209afd7bf1ba895907f53efc0d7c05643eb6a', deployBlock: 26375617, protocolVersion: 3 },
         ],
         portal: {
           schema: 'sqd-portal/v1',
@@ -159,6 +161,12 @@ export const NETWORKS: Record<ChainId, NetworkConfig> = {
           nativeGateway: '0x650c4A5FEA1a378cB1bebc8b15C53b3Cc0036920',
           scale: '10000000000',
           decimals: 8,
+        },
+        {
+          name: 'P20',
+          symbol: 'P20',
+          address: '0x955209afd7Bf1Ba895907f53EFC0d7C05643eb6A',
+          decimals: 6,
         },
       ],
     },
